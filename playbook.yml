@@ -42,11 +42,11 @@
         state: directory
         mode: '0700'
 
-    - name: Copy SSH keys
-      copy:
-        src: ~/.ssh/authorized_keys
-        dest: "{{ ansible_env.HOME }}/.ssh/authorized_keys"
-        mode: '0600'
+    - name: Add SSH key to authorized_keys
+      authorized_key:
+        user: "{{ ansible_user }}"
+        key: "{{ lookup('file', ssh_pub_key_path) }}"
+        state: present
 
     - name: Configure secure SSH configuration
       lineinfile:
@@ -64,3 +64,5 @@
       service:
         name: ssh
         state: restarted
+  vars:
+    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') | default('/mnt/c/Users/Ivan/.ssh/id_rsa.pub', true) }}" # NOTE: This is a workaround to get the SSH key path from the environment variable, replace  Ivan with your username
