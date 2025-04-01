@@ -1,0 +1,64 @@
+- name: Basic server setup
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Update apt
+      apt:
+        update_cache: true
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+
+    - name: Install packages
+      apt:
+        name:
+          - vim
+          - curl
+          - htop
+          - fail2ban
+          - ufw
+          - git
+          - unattended-upgrades
+          - traceroute
+        state: present
+
+    - name: Allow OpenSSH through UFW
+      ufw:
+        rule: allow
+        name: OpenSSH
+        state: enabled
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+
+    - name: Create .ssh directory
+      file:
+        path: "{{ ansible_env.HOME }}/.ssh"
+        state: directory
+        mode: '0700'
+
+    - name: Copy SSH keys
+      copy:
+        src: ~/.ssh/authorized_keys
+        dest: "{{ ansible_env.HOME }}/.ssh/authorized_keys"
+        mode: '0600'
+
+    - name: Configure secure SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+      notify: restart ssh
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted
