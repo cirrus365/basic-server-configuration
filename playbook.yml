@@ -21,6 +21,8 @@
           - git
           - unattended-upgrades
           - traceroute
+          - net-tools
+          - wget
         state: present
 
     - name: Allow OpenSSH through UFW
