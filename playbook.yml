@@ -36,7 +36,7 @@
     # Create or update the ansible user with sudo privileges
     - name: Add user
       user:
-        name: "{{ ansible_user }}"  # Uses the ansible_user variable
+        name: devops
         state: present
         groups: sudo               # Adds user to sudo group
         append: true              # Appends to existing groups instead of replacing
@@ -51,7 +51,7 @@
     # Add the SSH public key to authorized_keys file
     - name: Add SSH key to authorized_keys
       authorized_key:
-        user: "{{ ansible_user }}"
+        user: devops
         key: "{{ lookup('file', ssh_pub_key_path) }}"  # Reads the public key from file
         state: present
 
@@ -87,6 +87,30 @@
           - fail2ban  # Intrusion prevention
           - ufw       # Firewall
         state: present
+
+    # Configure fail2ban
+    - name: Create fail2ban jail.local file
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime = 1h
+          findtime = 10m
+          maxretry = 5
+          
+          [sshd]
+          enabled = true
+          port = ssh
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+          bantime = 24h
+
+    - name: Enable fail2ban service
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
 
     # Configure UFW to allow SSH connections
     - name: Allow OpenSSH through UFW
