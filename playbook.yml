@@ -183,5 +183,4 @@
         state: restarted
 
   vars:
-    # Variable for SSH public key path with fallback to default location
-    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') | default('/mnt/c/Users/<user_name>/.ssh/id_rsa.pub', true) }}" # NOTE: This is a workaround to get the SSH key path from the environment variable, replace <user_name> with your username
+    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') }}"
