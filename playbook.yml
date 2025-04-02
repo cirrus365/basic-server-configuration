@@ -1,50 +1,114 @@
 - name: Basic server setup
   hosts: servers
-  become: yes
+  become: yes  # Run tasks with sudo privileges
   tasks:
+    # System updates
+    # Update the apt package cache to get the latest package information
     - name: Update apt
       apt:
-        update_cache: true
+        update_cache: true  # Equivalent to 'apt-get update'
 
+    # Upgrade all installed packages to their latest versions
     - name: Upgrade all packages
       apt:
-        upgrade: dist
-        
+        upgrade: dist  # Equivalent to 'apt-get dist-upgrade'
+
+    # Time configuration
+    # Set the system timezone to Europe/Kyiv
     - name: Set timezone to Europe/Kyiv
       timezone:
-        name: Europe/Kyiv
+        name: Europe/Kyiv  # Sets timezone using timedatectl
 
+    # Install chrony package for NTP time synchronization
     - name: Install chrony for time synchronization
       apt:
         name: chrony
-        state: present
+        state: present  # Ensures the package is installed
 
+    # Start and enable chrony service to run on boot
     - name: Enable and start chrony service
       service:
         name: chrony
-        state: started
-        enabled: yes
+        state: started  # Starts the service
+        enabled: yes    # Enables service to start on boot
 
+    # User and SSH setup
+    # Create or update the ansible user with sudo privileges
     - name: Add user
       user:
-        name: "{{ ansible_user }}"
+        name: "{{ ansible_user }}"  # Uses the ansible_user variable
         state: present
-        groups: sudo
-        append: true
-        
+        groups: sudo               # Adds user to sudo group
+        append: true              # Appends to existing groups instead of replacing
+
+    # Create .ssh directory with secure permissions
+    - name: Create .ssh directory
+      file:
+        path: "{{ ansible_env.HOME }}/.ssh"  # Uses home directory of ansible_user
+        state: directory
+        mode: '0700'  # Sets permissions to 700 (rwx------)
+
+    # Add the SSH public key to authorized_keys file
+    - name: Add SSH key to authorized_keys
+      authorized_key:
+        user: "{{ ansible_user }}"
+        key: "{{ lookup('file', ssh_pub_key_path) }}"  # Reads the public key from file
+        state: present
+
+    # Configure SSH daemon for security
+    - name: Configure secure SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }      # Disable root login
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }  # Disable password auth
+      notify: restart ssh  # Triggers SSH service restart when config changes
+
+    # Basic package installation
+    # Install essential system utilities
     - name: Install packages
       apt:
         name:
-          - vim
-          - curl
-          - htop
-          - fail2ban
-          - ufw
-          - git
-          - unattended-upgrades
-          - mtr
+          - vim    # Text editor
+          - curl   # HTTP client
+          - htop   # Process viewer
+          - git    # Version control
+          - mtr    # Network diagnostic tool
         state: present
 
+    # Security setup
+    # Install security-related packages
+    - name: Install security packages
+      apt:
+        name:
+          - fail2ban  # Intrusion prevention
+          - ufw       # Firewall
+        state: present
+
+    # Configure UFW to allow SSH connections
+    - name: Allow OpenSSH through UFW
+      ufw:
+        rule: allow
+        name: OpenSSH
+        state: enabled
+
+    # Enable UFW firewall with default deny policy
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny  # Deny all incoming connections by default
+
+    # Automatic updates configuration
+    # Install unattended-upgrades package
+    - name: Install unattended-upgrades
+      apt:
+        name: unattended-upgrades
+        state: present
+
+    # Enable automatic updates through debconf
     - name: Enable unattended-upgrades
       debconf:
         name: unattended-upgrades
@@ -52,6 +116,7 @@
         value: "true"
         vtype: boolean
 
+    # Configure unattended-upgrades behavior
     - name: Configure unattended-upgrades
       blockinfile:
         path: /etc/apt/apt.conf.d/50unattended-upgrades
@@ -63,64 +128,36 @@
               "${distro_id}ESMApps:${distro_codename}-apps-security";
               "${distro_id}ESM:${distro_codename}-infra-security";
           };
-          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
-          Unattended-Upgrade::MinimalSteps "true";
-          Unattended-Upgrade::InstallOnShutdown "false";
-          Unattended-Upgrade::Remove-Unused-Dependencies "true";
-          Unattended-Upgrade::Automatic-Reboot "false";
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";  # Fix interrupted upgrades
+          Unattended-Upgrade::MinimalSteps "true";            # Use minimal steps
+          Unattended-Upgrade::InstallOnShutdown "false";      # Don't install on shutdown
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";  # Clean up
+          Unattended-Upgrade::Automatic-Reboot "false";       # Don't reboot automatically
 
+    # Configure automatic update schedule
     - name: Configure automatic updates
       copy:
         dest: /etc/apt/apt.conf.d/20auto-upgrades
         content: |
-          APT::Periodic::Update-Package-Lists "1";
-          APT::Periodic::Download-Upgradeable-Packages "1";
-          APT::Periodic::Unattended-Upgrade "1";
-          APT::Periodic::AutocleanInterval "7";
+          APT::Periodic::Update-Package-Lists "1";           # Update package lists daily
+          APT::Periodic::Download-Upgradeable-Packages "1";  # Download upgrades daily
+          APT::Periodic::Unattended-Upgrade "1";             # Run unattended upgrade daily
+          APT::Periodic::AutocleanInterval "7";              # Clean up weekly
 
+    # Start and enable unattended-upgrades service
     - name: Start and enable unattended-upgrades service
       service:
         name: unattended-upgrades
         state: started
         enabled: yes
 
-    - name: Create .ssh directory
-      file:
-        path: "{{ ansible_env.HOME }}/.ssh"
-        state: directory
-        mode: '0700'
-
-    - name: Add SSH key to authorized_keys
-      authorized_key:
-        user: "{{ ansible_user }}"
-        key: "{{ lookup('file', ssh_pub_key_path) }}"
-        state: present
-
-    - name: Configure secure SSH configuration
-      lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-        state: present
-      loop:
-        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
-        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
-      notify: restart ssh
-      
-    - name: Allow OpenSSH through UFW
-      ufw:
-        rule: allow
-        name: OpenSSH
-        state: enabled
-
-    - name: Enable UFW
-      ufw:
-        state: enabled
-        policy: deny
   handlers:
+    # Handler to restart SSH service when configuration changes
     - name: restart ssh
       service:
         name: ssh
         state: restarted
+
   vars:
+    # Variable for SSH public key path with fallback to default location
     ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') | default('/mnt/c/Users/<user_name>/.ssh/id_rsa.pub', true) }}" # NOTE: This is a workaround to get the SSH key path from the environment variable, replace <user_name> with your username
