@@ -10,6 +10,13 @@
       apt:
         upgrade: dist
 
+    - name: Add user
+      user:
+        name: "{{ ansible_user }}"
+        state: present
+        groups: sudo
+        append: true
+        
     - name: Install packages
       apt:
         name:
@@ -22,17 +29,6 @@
           - unattended-upgrades
           - mtr
         state: present
-
-    - name: Allow OpenSSH through UFW
-      ufw:
-        rule: allow
-        name: OpenSSH
-        state: enabled
-
-    - name: Enable UFW
-      ufw:
-        state: enabled
-        policy: deny
 
     - name: Create .ssh directory
       file:
@@ -56,11 +52,21 @@
         - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
         - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
       notify: restart ssh
+      
+    - name: Allow OpenSSH through UFW
+      ufw:
+        rule: allow
+        name: OpenSSH
+        state: enabled
 
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
   handlers:
     - name: restart ssh
       service:
         name: ssh
         state: restarted
   vars:
-    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') | default('/mnt/c/Users/Ivan/.ssh/id_rsa.pub', true) }}" # NOTE: This is a workaround to get the SSH key path from the environment variable, replace  Ivan with your username
+    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') | default('/mnt/c/Users/<user_name>/.ssh/id_rsa.pub', true) }}" # NOTE: This is a workaround to get the SSH key path from the environment variable, replace <user_name> with your username
