@@ -42,8 +42,8 @@
         append: true              # Appends to existing groups instead of replacing
         password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"  # Set initial password
 
-    # Configure sudo privileges for devops user
-    - name: Configure sudo privileges for devops user
+    # Configure sudo privileges for new user
+    - name: Configure sudo privileges for new user
       copy:
         dest: /etc/sudoers.d/{{ new_user_name }}
         content: "{{ new_user_name }} ALL=(ALL) ALL"
