@@ -40,7 +40,7 @@
         state: present
         groups: sudo               # Adds user to sudo group
         append: true              # Appends to existing groups instead of replacing
-        password: "{{ lookup('env', 'PASSWORD') }}"  # Set initial password
+        password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"  # Set initial password
 
     # Configure sudo privileges for devops user
     - name: Configure sudo privileges for devops user
