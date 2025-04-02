@@ -36,7 +36,7 @@
     # Create or update the ansible user with sudo privileges
     - name: Add user
       user:
-        name: devops
+        name: {{ new_user_name }}
         state: present
         groups: sudo               # Adds user to sudo group
         append: true              # Appends to existing groups instead of replacing
@@ -45,22 +45,22 @@
     # Configure sudo privileges for devops user
     - name: Configure sudo privileges for devops user
       copy:
-        dest: /etc/sudoers.d/devops
-        content: "devops ALL=(ALL) ALL"
+        dest: /etc/sudoers.d/{{ new_user_name }}
+        content: "{{ new_user_name }} ALL=(ALL) ALL"
         mode: '0440'
         validate: /usr/sbin/visudo -cf %s
 
     # Create .ssh directory with secure permissions
     - name: Create .ssh directory
       file:
-        path: "{{ ansible_env.HOME }}/.ssh"  # Uses home directory of ansible_user
+        path: "/home/{{ new_user_name }}/.ssh"
         state: directory
         mode: '0700'  # Sets permissions to 700 (rwx------)
 
     # Add the SSH public key to authorized_keys file
     - name: Add SSH key to authorized_keys
       authorized_key:
-        user: devops
+        user: {{ new_user_name }}
         key: "{{ lookup('file', ssh_pub_key_path) }}"  # Reads the public key from file
         state: present
 
@@ -196,3 +196,5 @@
 
   vars:
     ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') }}"
+    new_user_password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
+    new_user_name: "{{ lookup('env', 'NEW_USER_NAME') }}"
