@@ -40,6 +40,15 @@
         state: present
         groups: sudo               # Adds user to sudo group
         append: true              # Appends to existing groups instead of replacing
+        password: "{{ lookup('env', 'PASSWORD') }}"  # Set initial password
+
+    # Configure sudo privileges for devops user
+    - name: Configure sudo privileges for devops user
+      copy:
+        dest: /etc/sudoers.d/devops
+        content: "devops ALL=(ALL) ALL"
+        mode: '0440'
+        validate: /usr/sbin/visudo -cf %s
 
     # Create .ssh directory with secure permissions
     - name: Create .ssh directory
@@ -63,8 +72,11 @@
         line: "{{ item.line }}"
         state: present
       loop:
-        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }      # Disable root login
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' } 
         - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }  # Disable password auth
+        - { regexp: '^#?ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }  # Disable challenge-response auth
+        - { regexp: '^#?UsePAM', line: 'UsePAM no' }  # Disable PAM authentication
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }  # Ensure public key authentication is enabled
       notify: restart ssh  # Triggers SSH service restart when config changes
 
     # Basic package installation
