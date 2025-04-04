@@ -15,9 +15,9 @@
 
     # Time configuration
     # Set the system timezone to Europe/Kyiv
-    - name: Set timezone to Europe/Kyiv
+    - name: Set timezone to whatever set in the .env file
       timezone:
-        name: Europe/Kyiv  # Sets timezone using timedatectl
+        name: "{{ TIMEZONE }}"  # Sets timezone using timedatectl
 
     # Install chrony package for NTP time synchronization
     - name: Install chrony for time synchronization
