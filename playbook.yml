@@ -34,34 +34,38 @@
 
     # User and SSH setup
     # Create or update the ansible user with sudo privileges
+    - name: Generate password hash
+      set_fact:
+        hashed_password: "{{ NEW_USER_PASSWORD | password_hash('sha512') }}"
+
     - name: Add user
       user:
-        name: "{{ new_user_name }}"
+        name: "{{ NEW_USER_NAME }}"
         state: present
         groups: sudo               # Adds user to sudo group
         append: true              # Appends to existing groups instead of replacing
-        password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"  # Set initial password
+        password: "{{ hashed_password }}"
 
     # Configure sudo privileges for new user
     - name: Configure sudo privileges for new user
       copy:
-        dest: /etc/sudoers.d/{{ new_user_name }}
-        content: "{{ new_user_name }} ALL=(ALL) ALL"
+        dest: /etc/sudoers.d/{{ NEW_USER_NAME }}
+        content: "{{ NEW_USER_NAME }} ALL=(ALL) ALL"
         mode: '0440'
         validate: /usr/sbin/visudo -cf %s
 
     # Create .ssh directory with secure permissions
     - name: Create .ssh directory
       file:
-        path: "/home/{{ new_user_name }}/.ssh"
+        path: "/home/{{ NEW_USER_NAME }}/.ssh"
         state: directory
         mode: '0700'  # Sets permissions to 700 (rwx------)
 
     # Add the SSH public key to authorized_keys file
     - name: Add SSH key to authorized_keys
       authorized_key:
-        user: "{{ new_user_name }}"
-        key: "{{ lookup('file', ssh_pub_key_path) }}"  # Reads the public key from file
+        user: "{{ NEW_USER_NAME }}"
+        key: "{{ lookup('file', SSH_KEY_PATH) }}"  # Reads the public key from file
         state: present
 
     # Configure SSH daemon for security
@@ -195,6 +199,6 @@
         state: restarted
 
   vars:
-    ssh_pub_key_path: "{{ lookup('env', 'SSH_KEY_PATH') }}"
-    new_user_password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
-    new_user_name: "{{ lookup('env', 'NEW_USER_NAME') }}"
+    SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"
+    NEW_USER_PASSWORD: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
+    NEW_USER_NAME: "{{ lookup('env', 'NEW_USER_NAME') }}"
