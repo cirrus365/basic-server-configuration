@@ -15,9 +15,9 @@
 
     # Time configuration
     # Set the system timezone to Europe/Kyiv
-    - name: Set timezone to Europe/Kyiv
+    - name: Set timezone to whatever set in the .env file
       timezone:
-        name: Europe/Kyiv  # Sets timezone using timedatectl
+        name: "{{ TIMEZONE }}"  # Sets timezone using timedatectl
 
     # Install chrony package for NTP time synchronization
     - name: Install chrony for time synchronization
@@ -102,10 +102,8 @@
     # Create custom SSH config
     - name: Create custom SSH config
       copy:
+        src: ./config/ssh/99-custom.conf
         dest: /etc/ssh/sshd_config.d/99-custom.conf
-        content: |
-          PasswordAuthentication no
-          PermitRootLogin prohibit-password
         mode: '0644'
       notify: restart ssh
       
@@ -134,19 +132,7 @@
     - name: Create fail2ban jail.local file
       copy:
         dest: /etc/fail2ban/jail.local
-        content: |
-          [DEFAULT]
-          bantime = 1h
-          findtime = 10m
-          maxretry = 5
-          
-          [sshd]
-          enabled = true
-          port = ssh
-          filter = sshd
-          logpath = /var/log/auth.log
-          maxretry = 3
-          bantime = 24h
+        src: ./config/fail2ban/jail.local
 
     - name: Enable fail2ban service
       service:
@@ -204,11 +190,7 @@
     - name: Configure automatic updates
       copy:
         dest: /etc/apt/apt.conf.d/20auto-upgrades
-        content: |
-          APT::Periodic::Update-Package-Lists "1";           # Update package lists daily
-          APT::Periodic::Download-Upgradeable-Packages "1";  # Download upgrades daily
-          APT::Periodic::Unattended-Upgrade "1";             # Run unattended upgrade daily
-          APT::Periodic::AutocleanInterval "7";              # Clean up weekly
+        src: ./config/apt/20auto-upgrades
 
     # Start and enable unattended-upgrades service
     - name: Start and enable unattended-upgrades service
@@ -229,3 +211,4 @@
     NEW_USER_PASSWORD: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
     NEW_USER_NAME: "{{ lookup('env', 'NEW_USER_NAME') }}"
     ANSIBLE_USER: "{{ lookup('env', 'ANSIBLE_USER') }}"
+    TIMEZONE: "{{ lookup('env', 'TIMEZONE') }}"

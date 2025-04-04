@@ -30,14 +30,7 @@ An Ansible playbook for automating secure server setup and configuration with se
    cd basic-server-configuration
    ```
 
-2. Configure environment variables in the `.env` file:
-   ```
-   ANSIBLE_USER=your_initial_ssh_user
-   ANSIBLE_PASSWORD=your_initial_password
-   SSH_KEY_PATH=/path/to/your/id_rsa.pub
-   NEW_USER_PASSWORD=secure_password_for_new_user
-   NEW_USER_NAME=your_new_admin_username
-   ```
+2. Configure environment variables in the `.env` file, you can follow the sample file provided and fill in your data
 
 3. Update the `inventory.ini` file with your server IP addresses:
    ```ini
