@@ -42,8 +42,8 @@ An Ansible playbook for automating secure server setup and configuration with se
 3. Update the `inventory.ini` file with your server IP addresses:
    ```ini
    [servers]
-   192.168.88.3
-   192.168.88.2
+   192.168.1.10
+   192.168.1.11
    # Add your servers here
    ```
 
