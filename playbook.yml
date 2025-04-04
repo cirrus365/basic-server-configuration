@@ -33,12 +33,14 @@
         enabled: yes    # Enables service to start on boot
 
     # Root user SSH setup
+    # Create SSH directory for the root user
     - name: Create SSH directory for the root user
       file:
         path: "/{{ ANSIBLE_USER }}/.ssh"
         state: directory
         mode: '0700'
 
+    # Add SSH key to root user's authorized_keys
     - name: Add SSH key to root user's authorized_keys
       authorized_key:
         user: "{{ ANSIBLE_USER }}"
@@ -46,11 +48,12 @@
         state: present
 
     # User and SSH setup
-    # Create or update user with sudo privileges
+    # Generate password hash
     - name: Generate password hash
       set_fact:
         hashed_password: "{{ NEW_USER_PASSWORD | password_hash('sha512') }}"
 
+    # Create or update user with sudo privileges
     - name: Add user
       user:
         name: "{{ NEW_USER_NAME }}"
