@@ -32,6 +32,7 @@
         state: started  # Starts the service
         enabled: yes    # Enables service to start on boot
 
+    # Root user SSH setup
     - name: Create SSH directory for the root user
       file:
         path: "/{{ ANSIBLE_USER }}/.ssh"
@@ -45,7 +46,7 @@
         state: present
 
     # User and SSH setup
-    # Create or update the ansible user with sudo privileges
+    # Create or update user with sudo privileges
     - name: Generate password hash
       set_fact:
         hashed_password: "{{ NEW_USER_PASSWORD | password_hash('sha512') }}"
