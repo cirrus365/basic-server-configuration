@@ -57,11 +57,21 @@ An Ansible playbook for automating secure server setup and configuration with se
 
 ## ⚙️ Customization
 
-Edit `playbook.yml` to:
-- Change the timezone
-- Modify the package list
-- Adjust security settings
-- Add or remove configuration tasks
+The playbook has been modularized into roles for better organization and maintainability. To customize:
+
+- **System Updates**: Edit `roles/system_updates/tasks/main.yml`
+- **Time Configuration**: Edit `roles/time_configuration/tasks/main.yml`
+- **SSH Setup**: Edit `roles/ssh_setup/tasks/main.yml`
+- **User Management**: Edit `roles/user_management/tasks/main.yml`
+- **Package Installation**: Edit `roles/package_installation/tasks/main.yml`
+- **Security Setup**: Edit `roles/security_setup/tasks/main.yml`
+- **Automatic Updates**: Edit `roles/automatic_updates/tasks/main.yml`
+
+Common customizations:
+- Change the timezone: Edit the timezone task in `roles/time_configuration/tasks/main.yml`
+- Modify the package list: Edit the package list in `roles/package_installation/tasks/main.yml`
+- Adjust security settings: Edit the security settings in `roles/security_setup/tasks/main.yml`
+- Add or remove configuration tasks: Add or remove tasks in the appropriate role's task file
 
 ## 🤝 Contributions
 

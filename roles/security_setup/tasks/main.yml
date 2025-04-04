@@ -1,0 +1,34 @@
+---
+# Security setup
+# Install security-related packages
+- name: Install security packages
+  apt:
+    name:
+      - fail2ban  # Intrusion prevention
+      - ufw       # Firewall
+    state: present
+
+# Configure fail2ban
+- name: Create fail2ban jail.local file
+  copy:
+    dest: /etc/fail2ban/jail.local
+    src: jail.local
+
+- name: Enable fail2ban service
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+# Configure UFW to allow SSH connections
+- name: Allow OpenSSH through UFW
+  ufw:
+    rule: allow
+    name: OpenSSH
+    state: enabled
+
+# Enable UFW firewall with default deny policy
+- name: Enable UFW
+  ufw:
+    state: enabled
+    policy: deny  # Deny all incoming connections by default
