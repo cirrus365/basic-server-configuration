@@ -3,14 +3,14 @@
   become: yes  # Run tasks with sudo privileges
 
   roles:
-    - system_updates
-    - logging_setup
-    - time_configuration
-    - ssh_setup
-    - user_management
-    - package_installation
-    - security_setup
-    - automatic_updates
+    - { role: system_updates, tags: ['system', 'updates'] }
+    - { role: logging_setup, tags: ['logging'] }
+    - { role: time_configuration, tags: ['time'] }
+    - { role: ssh_setup, tags: ['ssh'] }
+    - { role: user_management, tags: ['users'] }
+    - { role: package_installation, tags: ['packages'] }
+    - { role: security_setup, tags: ['security'] }
+    - { role: automatic_updates, tags: ['updates', 'automatic'] }
 
   vars:
     SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"

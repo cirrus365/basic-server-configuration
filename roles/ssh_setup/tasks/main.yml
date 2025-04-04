@@ -6,6 +6,7 @@
     path: "/{{ ANSIBLE_USER }}/.ssh"
     state: directory
     mode: '0700'
+  tags: ['ssh']
 
 # Add SSH key to root user's authorized_keys
 - name: Add SSH key to root user's authorized_keys
@@ -13,6 +14,7 @@
     user: "{{ ANSIBLE_USER }}"
     key: "{{ lookup('file', SSH_KEY_PATH) }}"
     state: present
+  tags: ['ssh']
 
 # Configure SSH daemon for security
 - name: Configure secure SSH configuration
@@ -28,6 +30,7 @@
     - { regexp: '^#?UsePAM', line: 'UsePAM no' }  # Disable PAM authentication
     - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }  # Ensure public key authentication is enabled
   notify: restart ssh  # Triggers SSH service restart when config changes
+  tags: ['ssh']
 
 # Create custom SSH config
 - name: Create custom SSH config
@@ -36,3 +39,4 @@
     dest: /etc/ssh/sshd_config.d/99-custom.conf
     mode: '0644'
   notify: restart ssh
+  tags: ['ssh']

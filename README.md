@@ -90,6 +90,59 @@ Common customizations:
   - Add custom application logs: Add new log paths in both rsyslog and logrotate configurations
 - Add or remove configuration tasks: Add or remove tasks in the appropriate role's task file
 
+## 🏷️ Using Tags
+
+The playbook now supports tags, allowing you to selectively run or skip specific parts of the configuration. This is useful for:
+
+- Running only specific components during testing
+- Updating only certain aspects of your server configuration
+- Skipping parts that you've already configured or don't need
+
+### Available Tags
+
+- **system**: System-related tasks
+- **updates**: Update-related tasks (both system and automatic updates)
+- **logging**: Logging configuration tasks
+  - **rsyslog**: rsyslog-specific configuration
+  - **logrotate**: logrotate-specific configuration
+  - **log_monitoring**: Log monitoring tasks
+  - **log_directory**: Log directory creation
+- **time**: Time configuration tasks
+- **ssh**: SSH configuration tasks
+- **users**: User management tasks
+- **packages**: Package installation tasks
+- **security**: Security-related tasks
+  - **fail2ban**: Fail2ban configuration
+  - **ufw**: Firewall configuration
+- **automatic**: Automatic update configuration
+
+### Using Tags
+
+To run only specific parts of the playbook, use the `--tags` option:
+
+```bash
+# Run only security-related tasks
+ansible-playbook playbook.yml --tags security
+
+# Run only SSH and user management tasks
+ansible-playbook playbook.yml --tags "ssh,users"
+
+# Run only fail2ban configuration
+ansible-playbook playbook.yml --tags fail2ban
+```
+
+To skip specific parts of the playbook, use the `--skip-tags` option:
+
+```bash
+# Run everything except automatic updates
+ansible-playbook playbook.yml --skip-tags automatic
+
+# Run everything except security and logging
+ansible-playbook playbook.yml --skip-tags "security,logging"
+```
+
+You can also combine these approaches for more complex scenarios.
+
 ## 🤝 Contributions
 
 Stars and contributions are highly appreciated! If you find this project useful, please consider:
