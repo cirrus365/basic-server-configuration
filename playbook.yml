@@ -4,6 +4,7 @@
 
   roles:
     - system_updates
+    - logging_setup
     - time_configuration
     - ssh_setup
     - user_management

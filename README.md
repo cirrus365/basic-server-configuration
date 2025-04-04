@@ -5,6 +5,11 @@ An Ansible playbook for automating secure server setup and configuration with se
 ## 🚀 Features
 
 - **System Updates**: Keeps your servers up-to-date with the latest security patches
+- **Logging & Reporting**: 
+  - Configures system logging with rsyslog
+  - Sets up log rotation with logrotate
+  - Generates HTML execution reports
+  - Maintains detailed Ansible logs
 - **User Management**: Creates a secure non-root user with sudo privileges
 - **SSH Hardening**: Configures SSH for key-based authentication only
 - **Firewall Setup**: Installs and configures UFW with secure defaults
@@ -54,12 +59,20 @@ An Ansible playbook for automating secure server setup and configuration with se
 - Configures automatic security updates
 - Installs essential system utilities
 - Sets timezone to Europe/Kyiv (configurable)
+- Configures comprehensive system logging with rsyslog
+- Sets up log rotation to manage log file sizes
+- Creates a dedicated directory for application logs
+- Implements basic log monitoring for large log files
+- Generates detailed HTML reports for each playbook run
 
 ## ⚙️ Customization
 
 The playbook has been modularized into roles for better organization and maintainability. To customize:
 
 - **System Updates**: Edit `roles/system_updates/tasks/main.yml`
+- **Logging Setup**: Edit `roles/logging_setup/tasks/main.yml`
+  - Modify rsyslog configuration in `roles/logging_setup/templates/rsyslog.conf.j2`
+  - Adjust log rotation settings in `roles/logging_setup/files/logrotate.conf`
 - **Time Configuration**: Edit `roles/time_configuration/tasks/main.yml`
 - **SSH Setup**: Edit `roles/ssh_setup/tasks/main.yml`
 - **User Management**: Edit `roles/user_management/tasks/main.yml`
@@ -71,6 +84,10 @@ Common customizations:
 - Change the timezone: Edit the timezone task in `roles/time_configuration/tasks/main.yml`
 - Modify the package list: Edit the package list in `roles/package_installation/tasks/main.yml`
 - Adjust security settings: Edit the security settings in `roles/security_setup/tasks/main.yml`
+- Configure logging:
+  - Enable remote logging: Uncomment and configure the remote logging line in `roles/logging_setup/templates/rsyslog.conf.j2`
+  - Change log rotation frequency: Modify rotation settings in `roles/logging_setup/files/logrotate.conf`
+  - Add custom application logs: Add new log paths in both rsyslog and logrotate configurations
 - Add or remove configuration tasks: Add or remove tasks in the appropriate role's task file
 
 ## 🤝 Contributions
