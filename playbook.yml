@@ -32,6 +32,18 @@
         state: started  # Starts the service
         enabled: yes    # Enables service to start on boot
 
+    - name: Create SSH directory for the root user
+      file:
+        path: "/{{ ANSIBLE_USER }}/.ssh"
+        state: directory
+        mode: '0700'
+
+    - name: Add SSH key to root user's authorized_keys
+      authorized_key:
+        user: "{{ ANSIBLE_USER }}"
+        key: "{{ lookup('file', SSH_KEY_PATH) }}"
+        state: present
+
     # User and SSH setup
     # Create or update the ansible user with sudo privileges
     - name: Generate password hash
@@ -76,13 +88,23 @@
         line: "{{ item.line }}"
         state: present
       loop:
-        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' } 
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin prohibit-password' } 
         - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }  # Disable password auth
         - { regexp: '^#?ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }  # Disable challenge-response auth
         - { regexp: '^#?UsePAM', line: 'UsePAM no' }  # Disable PAM authentication
         - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }  # Ensure public key authentication is enabled
       notify: restart ssh  # Triggers SSH service restart when config changes
 
+    # Create custom SSH config
+    - name: Create custom SSH config
+      copy:
+        dest: /etc/ssh/sshd_config.d/99-custom.conf
+        content: |
+          PasswordAuthentication no
+          PermitRootLogin prohibit-password
+        mode: '0644'
+      notify: restart ssh
+      
     # Basic package installation
     # Install essential system utilities
     - name: Install packages
@@ -202,3 +224,4 @@
     SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"
     NEW_USER_PASSWORD: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
     NEW_USER_NAME: "{{ lookup('env', 'NEW_USER_NAME') }}"
+    ANSIBLE_USER: "{{ lookup('env', 'ANSIBLE_USER') }}"
