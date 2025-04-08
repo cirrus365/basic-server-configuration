@@ -6,11 +6,21 @@
     - name: "Update apt caches"
       ansible.builtin.apt:
         update_cache: yes
+        upgrade: yes
         cache_valid_time: 3600
+    
+    # Install Ubuntu specific package for TZ change 
+    # https://docs.ansible.com/ansible/latest/collections/community/general/timezone_module.html
+    - name: "Install util-linux-extras to access hwclock"
+      apt:
+        name: util-linux-extra
+        state: present
+      when: ansible_distribution == "Ubuntu"
 
-    # Time configuration
-    - name: Set timezone to whatever set in the .env file
-      timezone:
+    # TimeZone configuration
+    - name: "Set TimeZone using the community.general timezone module"
+      become: true
+      community.general.timezone:
         name: "{{ TIMEZONE }}"
 
     - name: Install chrony for time synchronization
