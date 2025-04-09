@@ -1,6 +1,7 @@
 #!/bin/bash 
 set -a
 source .env
+source test/scripts/logging.sh
 set +a 
 
 echo "Starting test script..."
