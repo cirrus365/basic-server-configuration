@@ -1,4 +1,4 @@
-- name: Basic server setup
+- name: "[Server setup] : Initial Debian based server setup"
   hosts: servers
   become: yes  # Run tasks with sudo privileges
 
@@ -11,6 +11,7 @@
     - { role: package_installation, tags: ['packages'] }
     - { role: security_setup, tags: ['security'] }
     - { role: automatic_updates, tags: ['updates', 'automatic'] }
+
 
   vars:
     SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"
