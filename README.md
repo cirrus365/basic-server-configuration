@@ -68,7 +68,6 @@ Edit `playbook.yml` to:
 Stars and contributions are highly appreciated! If you find this project useful, please consider:
 
 - ⭐ Starring the repository
-- 🔀 Creating a pull request with enhancements
 - 🐛 Opening issues for bugs or feature requests
 - 📢 Sharing with fellow sysadmins and DevOps engineers
 
