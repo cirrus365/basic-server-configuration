@@ -1,5 +1,1 @@
 .vscode
-.env 
-temp_ssh_keys/
-.vagrant/
-.vagrant
