@@ -1,12 +1,104 @@
 ---
 # Basic package installation
-# Install essential system utilities
-- name: Install packages
-  apt:
-    name:
-      - vim    # Text editor
-      - curl   # HTTP client
-      - htop   # Process viewer
-      - git    # Version control
-      - mtr    # Network diagnostic tool
+
+- name: Install essential system utilities
+  package:
+    name: "{{ packages.essential }}"
     state: present
+  tags: ['packages', 'essential']
+
+- name: Install development tools
+  package:
+    name: "{{ packages.development }}"
+    state: present
+  when: install_development_tools | default(false)
+  tags: ['packages', 'development']
+
+- name: Install monitoring tools
+  package:
+    name: "{{ packages.monitoring }}"
+    state: present
+  when: install_monitoring_tools | default(true)
+  tags: ['packages', 'monitoring']
+
+- name: Install security tools
+  package:
+    name: "{{ packages.security_tools }}"
+    state: present
+  when: install_security_tools | default(true)
+  tags: ['packages', 'security']
+
+- name: Install additional custom packages
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ custom_packages | default([]) }}"
+  when: custom_packages is defined
+  tags: ['packages', 'custom']
+
+# Distribution-specific package installations
+- name: Install Debian/Ubuntu specific packages
+  apt:
+    name: "{{ packages.distro_specific }}"
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  tags: ['packages', 'distro-specific']
+
+- name: Install RHEL-based specific packages
+  yum:
+    name: "{{ packages.distro_specific }}"
+    state: present
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int < 8
+  tags: ['packages', 'distro-specific']
+
+- name: Install RHEL 8+ specific packages
+  dnf:
+    name: "{{ packages.distro_specific }}"
+    state: present
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int >= 8
+  tags: ['packages', 'distro-specific']
+
+# Package cleanup
+- name: Remove unnecessary packages (Debian/Ubuntu)
+  apt:
+    autoremove: yes
+    purge: yes
+  when: 
+    - ansible_os_family == "Debian"
+    - package_cleanup | default(true)
+  tags: ['packages', 'cleanup']
+
+- name: Clean package cache (RHEL-based)
+  command: "{{ package_manager }} clean all"
+  vars:
+    package_manager: "{{ 'dnf' if ansible_distribution_major_version|int >= 8 else 'yum' }}"
+  when: 
+    - ansible_os_family == "RedHat"
+    - package_cleanup | default(true)
+  changed_when: false
+  tags: ['packages', 'cleanup']
+
+# Verify critical packages are installed
+- name: Verify critical packages installation
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - "{{ packages.python_package }}"
+    - "{{ packages.sudo_package }}"
+    - "{{ packages.ssh_package }}"
+  tags: ['packages', 'verify']
+
+- name: Display installed package summary
+  debug:
+    msg: |
+      Package installation completed for {{ ansible_distribution }} {{ ansible_distribution_version }}
+      Essential packages: {{ packages.essential | length }} packages
+      Total custom packages: {{ custom_packages | default([]) | length }} packages
+  tags: ['packages', 'summary']

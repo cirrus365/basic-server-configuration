@@ -1,0 +1,70 @@
+[DEFAULT]
+# RHEL-based specific configuration
+bantime = 1h
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+destemail = root@localhost
+sender = root@%(fqdn)s
+mta = sendmail
+# RHEL uses systemd journal by default
+backend = systemd
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+# RHEL/CentOS log paths
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 3
+bantime = 24h
+findtime = 10m
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 10
+bantime = 1h
+findtime = 1m
+
+[httpd-auth]
+enabled = false
+port = http,https
+filter = apache-auth
+logpath = /var/log/httpd/*error_log
+maxretry = 5
+bantime = 1h
+
+[httpd-badbots]
+enabled = false
+port = http,https
+filter = apache-badbots
+logpath = /var/log/httpd/*access_log
+bantime = 48h
+maxretry = 1
+
+[nginx-http-auth]
+enabled = false
+port = http,https
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 5
+bantime = 1h
+
+[postfix]
+enabled = false
+port = smtp,ssmtp,submission
+filter = postfix
+logpath = /var/log/maillog
+maxretry = 5
+bantime = 1h
+
+# SELinux can block fail2ban from reading logs
+# Run: setsebool -P allow_httpd_anon_write 1
+# if you have issues with httpd jails

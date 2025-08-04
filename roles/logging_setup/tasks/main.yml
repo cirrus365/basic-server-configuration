@@ -1,37 +1,42 @@
 ---
 - name: Install logging packages
-  apt:
-    name:
-      - rsyslog
-      - logrotate
+  package:
+    name: "{{ packages.logging }}"
     state: present
+  tags: ['logging', 'packages']
+
+- name: Update package cache (Debian/Ubuntu)
+  apt:
     update_cache: yes
+  when: ansible_os_family == "Debian"
+  changed_when: false
   tags: ['logging', 'packages']
 
 - name: Ensure rsyslog is configured
   template:
     src: rsyslog.conf.j2
-    dest: /etc/rsyslog.conf
+    dest: "{{ rsyslog_config }}"
     owner: root
     group: root
     mode: '0644'
-  notify: restart rsyslog
-  ignore_errors: yes  # Continue if template is missing
+    backup: yes
+  notify: 
+    - validate rsyslog configuration
+    - restart rsyslog
   tags: ['logging', 'rsyslog']
 
 - name: Configure logrotate for system logs
   copy:
-    src: logrotate.conf
+    src: "logrotate-{{ distro_vars_file }}.conf"
     dest: /etc/logrotate.d/custom-logs
     owner: root
     group: root
     mode: '0644'
-  ignore_errors: yes  # Continue if file is missing
   tags: ['logging', 'logrotate']
 
 - name: Ensure rsyslog service is enabled and running
   service:
-    name: rsyslog
+    name: "{{ services.rsyslog }}"
     state: started
     enabled: yes
   tags: ['logging', 'rsyslog']
@@ -45,12 +50,68 @@
     mode: '0755'
   tags: ['logging', 'log_directory']
 
+# Log monitoring setup - handling different mail utilities
+- name: Install mail utility (Debian/Ubuntu)
+  package:
+    name: bsd-mailx
+    state: present
+  when: ansible_os_family == "Debian"
+  tags: ['logging', 'log_monitoring']
+
+- name: Install mail utility (RHEL-based)
+  package:
+    name: mailx
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: ['logging', 'log_monitoring']
+
 - name: Set up log monitoring (basic)
   cron:
     name: "Check for large log files"
-    job: "find /var/log -type f -size +100M | mail -s 'Large log files found' root"
+    job: "find /var/log -type f -size +100M -exec ls -lh {} \\; | mail -s 'Large log files found on {{ ansible_hostname }}' root"
     hour: "0"
     minute: "0"
     user: root
-  when: ansible_os_family == "Debian"
   tags: ['logging', 'log_monitoring']
+
+# RHEL-specific: Ensure SELinux context for custom log directory
+- name: Set SELinux context for application log directory (RHEL-based)
+  command: semanage fcontext -a -t var_log_t "/var/log/apps(/.*)?"
+  register: selinux_fcontext
+  failed_when: 
+    - selinux_fcontext.rc != 0
+    - '"already defined" not in selinux_fcontext.stderr'
+  changed_when: 
+    - selinux_fcontext.rc == 0
+    - '"already defined" not in selinux_fcontext.stderr'
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  tags: ['logging', 'log_directory', 'selinux']
+
+- name: Apply SELinux context to application log directory (RHEL-based)
+  command: restorecon -R /var/log/apps
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  changed_when: false
+  tags: ['logging', 'log_directory', 'selinux']
+
+# Ensure logrotate is properly scheduled
+- name: Ensure logrotate timer is enabled (systemd)
+  systemd:
+    name: logrotate.timer
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: ansible_service_mgr == "systemd"
+  tags: ['logging', 'logrotate']
+
+- name: Ensure logrotate cron job exists (non-systemd)
+  file:
+    path: /etc/cron.daily/logrotate
+    state: file
+  when: ansible_service_mgr != "systemd"
+  tags: ['logging', 'logrotate']

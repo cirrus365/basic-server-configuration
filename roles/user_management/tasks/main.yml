@@ -1,37 +1,238 @@
 ---
 # User and SSH setup
-# Generate password hash
-- name: Generate password hash
+
+# Install password generation tools if needed
+- name: Install password utilities
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - python3-passlib  # For password hashing
+    - pwgen           # For generating passwords
+  when: ansible_os_family == "Debian"
+  tags: ['users', 'packages']
+
+- name: Install password utilities (RHEL)
+  package:
+    name: python3-passlib
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: ['users', 'packages']
+
+# Set sudo group name based on distribution
+- name: Set sudo group name
+  set_fact:
+    sudo_group: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+  tags: ['users', 'sudo']
+
+# Process legacy single user (backward compatibility)
+- name: Generate password hash for single user
   set_fact:
     hashed_password: "{{ NEW_USER_PASSWORD | password_hash('sha512') }}"
+  when:
+    - NEW_USER_NAME is defined
+    - NEW_USER_PASSWORD is defined
+  no_log: true
+  tags: ['users', 'password']
 
-# Create or update user with sudo privileges
-- name: Add user
+- name: Create user (legacy method)
   user:
     name: "{{ NEW_USER_NAME }}"
     state: present
-    groups: sudo               # Adds user to sudo group
-    append: true              # Appends to existing groups instead of replacing
+    groups: "{{ sudo_group }}"
+    append: true
     password: "{{ hashed_password }}"
+    shell: /bin/bash
+    createhome: yes
+    comment: "Created by Ansible"
+  when: NEW_USER_NAME is defined
+  tags: ['users', 'create']
 
-# Configure sudo privileges for new user
-- name: Configure sudo privileges for new user
-  copy:
-    dest: /etc/sudoers.d/{{ NEW_USER_NAME }}
-    content: "{{ NEW_USER_NAME }} ALL=(ALL) ALL"
+# Process multiple users (modern approach)
+- name: Create multiple users
+  user:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default('present') }}"
+    groups: "{{ item.groups | default([]) | join(',') }}"
+    append: "{{ item.append | default(true) }}"
+    password: "{{ item.password | password_hash('sha512') if item.password is defined else omit }}"
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    createhome: "{{ item.createhome | default(true) }}"
+    home: "{{ item.home | default('/home/' + item.name) }}"
+    comment: "{{ item.comment | default('Managed by Ansible') }}"
+    uid: "{{ item.uid | default(omit) }}"
+    expires: "{{ item.expires | default(omit) }}"
+  loop: "{{ users | default([]) }}"
+  when: users is defined
+  no_log: true
+  tags: ['users', 'create']
+
+# Configure sudo privileges
+- name: Configure sudo privileges (single user)
+  template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ NEW_USER_NAME }}"
     mode: '0440'
-    validate: /usr/sbin/visudo -cf %s
+    validate: '/usr/sbin/visudo -cf %s'
+  when: NEW_USER_NAME is defined
+  tags: ['users', 'sudo']
 
-# Create .ssh directory with secure permissions
-- name: Create .ssh directory
+- name: Configure sudo privileges (multiple users)
+  template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ item.name }}"
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.sudo is defined
+    - item.sudo
+  tags: ['users', 'sudo']
+
+# Ensure wheel group has sudo access (RHEL)
+- name: Ensure wheel group has sudo privileges
+  lineinfile:
+    path: /etc/sudoers
+    regexp: '^#?\s*%wheel\s+ALL=\(ALL\)\s+ALL'
+    line: '%wheel ALL=(ALL) ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+  when: ansible_os_family == "RedHat"
+  tags: ['users', 'sudo']
+
+# Create .ssh directories
+- name: Create .ssh directory (single user)
   file:
     path: "/home/{{ NEW_USER_NAME }}/.ssh"
     state: directory
-    mode: '0700'  # Sets permissions to 700 (rwx------)
+    owner: "{{ NEW_USER_NAME }}"
+    group: "{{ NEW_USER_NAME }}"
+    mode: '0700'
+  when: NEW_USER_NAME is defined
+  tags: ['users', 'ssh']
 
-# Add the SSH public key to authorized_keys file
-- name: Add SSH key to authorized_keys
+- name: Create .ssh directories (multiple users)
+  file:
+    path: "{{ item.home | default('/home/' + item.name) }}/.ssh"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: '0700'
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.state | default('present') == 'present'
+  tags: ['users', 'ssh']
+
+# Add SSH keys
+- name: Add SSH key (single user)
   authorized_key:
     user: "{{ NEW_USER_NAME }}"
-    key: "{{ lookup('file', SSH_KEY_PATH) }}"  # Reads the public key from file
+    key: "{{ lookup('file', SSH_KEY_PATH) }}"
     state: present
+  when:
+    - NEW_USER_NAME is defined
+    - SSH_KEY_PATH is defined
+  tags: ['users', 'ssh', 'keys']
+
+- name: Add SSH keys (multiple users)
+  authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ item.1 }}"
+    state: present
+    exclusive: "{{ item.0.ssh_key_exclusive | default(false) }}"
+    comment: "{{ item.0.name }}@ansible-managed"
+  with_subelements:
+    - "{{ users | default([]) }}"
+    - ssh_keys
+    - skip_missing: true
+  when:
+    - users is defined
+    - item.0.state | default('present') == 'present'
+  tags: ['users', 'ssh', 'keys']
+
+# Set password expiry policies
+- name: Set password expiry
+  command: "chage -M {{ item.password_max_days | default(90) }} -m {{ item.password_min_days | default(7) }} -W {{ item.password_warn_days | default(7) }} {{ item.name }}"
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.password_policy is defined
+    - item.password_policy
+  changed_when: false
+  tags: ['users', 'security']
+
+# Lock/unlock user accounts
+- name: Lock user accounts
+  command: "usermod -L {{ item.name }}"
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.locked is defined
+    - item.locked
+  changed_when: false
+  tags: ['users', 'security']
+
+# Set up user environment
+- name: Deploy user shell configuration
+  template:
+    src: "{{ item.1 }}.j2"
+    dest: "{{ item.0.home | default('/home/' + item.0.name) }}/.{{ item.1 }}"
+    owner: "{{ item.0.name }}"
+    group: "{{ item.0.name }}"
+    mode: '0644'
+  with_nested:
+    - "{{ users | default([]) }}"
+    - ['bashrc', 'bash_profile', 'vimrc']
+  when:
+    - users is defined
+    - item.0.deploy_dotfiles | default(false)
+    - item.0.state | default('present') == 'present'
+  tags: ['users', 'environment']
+
+# Remove users
+- name: Remove users
+  user:
+    name: "{{ item.name }}"
+    state: absent
+    remove: "{{ item.remove_home | default(true) }}"
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.state is defined
+    - item.state == 'absent'
+  tags: ['users', 'remove']
+
+# Create user management report
+- name: Generate user management report
+  template:
+    src: user-report.j2
+    dest: /root/user-management-report.txt
+    owner: root
+    group: root
+    mode: '0600'
+  tags: ['users', 'report']
+
+# Manage user groups
+- name: Create additional groups
+  group:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default('present') }}"
+    gid: "{{ item.gid | default(omit) }}"
+  loop: "{{ groups | default([]) }}"
+  when: groups is defined
+  tags: ['users', 'groups']
+
+# Set resource limits for users
+- name: Configure user resource limits
+  template:
+    src: limits.conf.j2
+    dest: "/etc/security/limits.d/{{ item.name }}-limits.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ users | default([]) }}"
+  when:
+    - users is defined
+    - item.limits is defined
+  tags: ['users', 'limits']

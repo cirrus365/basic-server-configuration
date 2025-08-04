@@ -1,0 +1,49 @@
+---
+# RHEL-based distributions variables
+package_manager: dnf
+package_update_cmd: dnf check-update || true
+package_upgrade_cmd: dnf upgrade -y
+package_autoremove_cmd: dnf autoremove -y
+
+# Package names
+packages:
+  essential:
+    - vim-enhanced
+    - curl
+    - wget
+    - htop
+    - git
+    - mtr
+    - net-tools
+    - yum-utils
+    - ca-certificates
+    - gnupg2
+  security:
+    - fail2ban
+    - firewalld
+  time:
+    - chrony
+  logging:
+    - rsyslog
+    - logrotate
+
+# Service names
+services:
+  ssh: sshd
+  fail2ban: fail2ban
+  ntp: chronyd
+  rsyslog: rsyslog
+
+# Configuration paths
+ssh_config_dir: /etc/ssh/sshd_config.d
+ssh_config_file: /etc/ssh/sshd_config.d/99-custom.conf
+fail2ban_config: /etc/fail2ban/jail.local
+auto_upgrades_config: /etc/dnf/automatic.conf
+logrotate_config: /etc/logrotate.conf
+rsyslog_config: /etc/rsyslog.conf
+
+# Firewall commands (using firewall-cmd for RHEL-based)
+firewall_enable_cmd: systemctl enable --now firewalld
+firewall_allow_ssh_cmd: firewall-cmd --permanent --add-service=ssh && firewall-cmd --reload
+firewall_default_deny_cmd: firewall-cmd --set-default-zone=public && firewall-cmd --reload
+firewall_default_allow_cmd: "true"  # firewalld handles this differently

@@ -1,12 +1,40 @@
 [DEFAULT]
+# Ban duration (1 hour default)
 bantime = 1h
+
+# Window for counting failures (10 minutes)
 findtime = 10m
+
+# Max retries before ban
 maxretry = 5
+
+# Ignore IPs - localhost and private ranges (customize as needed)
+ignoreip = 127.0.0.1/8 ::1
+
+# Ban action - use iptables-multiport
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+
+# Email notifications (optional)
+destemail = root@localhost
+sender = root@%(fqdn)s
+mta = sendmail
 
 [sshd]
 enabled = true
 port = ssh
 filter = sshd
-logpath = /var/log/auth.log
+# Log path will be overridden by distribution-specific configs
+logpath = %(sshd_log)s
 maxretry = 3
 bantime = 24h
+findtime = 10m
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = %(sshd_log)s
+maxretry = 10
+bantime = 1h
+findtime = 1m

@@ -1,0 +1,45 @@
+Security Setup Report
+Generated: {{ ansible_date_time.iso8601 }}
+Host: {{ ansible_hostname }}
+Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+FIREWALL STATUS:
+{% if ansible_os_family == "Debian" %}
+- Firewall: UFW
+- Default Policy: Deny incoming, Allow outgoing
+- SSH Port: {{ ssh_port | default('22') }}
+{% else %}
+- Firewall: firewalld
+- Active Zone: {{ ansible_facts.firewalld.default_zone | default('public') }}
+- SSH Port: {{ ssh_port | default('22') }}
+{% endif %}
+
+FAIL2BAN STATUS:
+- Service: {{ 'Active' if ansible_facts.services['fail2ban.service'].state == 'running' else 'Inactive' }}
+- Jails configured: sshd, sshd-ddos
+
+SECURITY MODULES:
+{% if ansible_os_family == "RedHat" %}
+- SELinux: {{ ansible_selinux.status | default('Unknown') }}
+- SELinux Mode: {{ ansible_selinux.mode | default('Unknown') }}
+{% else %}
+- AppArmor: {{ 'Enabled' if apparmor_enabled | default(true) else 'Disabled' }}
+{% endif %}
+
+CUSTOM FIREWALL RULES:
+{% if firewall_allowed_ports is defined %}
+{% for rule in firewall_allowed_ports %}
+- Port {{ rule.port }}/{{ rule.proto | default('tcp') }}: {{ rule.comment | default('Custom rule') }}
+{% endfor %}
+{% else %}
+- No custom rules defined
+{% endif %}
+
+DISABLED SERVICES:
+{% if disable_services is defined %}
+{% for service in disable_services %}
+- {{ service }}
+{% endfor %}
+{% else %}
+- No services explicitly disabled
+{% endif %}

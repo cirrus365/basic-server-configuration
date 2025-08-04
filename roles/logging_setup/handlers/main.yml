@@ -1,5 +1,26 @@
 ---
 - name: restart rsyslog
   service:
-    name: rsyslog
+    name: "{{ services.rsyslog | default('rsyslog') }}"
     state: restarted
+
+- name: reload rsyslog
+  service:
+    name: "{{ services.rsyslog | default('rsyslog') }}"
+    state: reloaded
+
+- name: restart logrotate
+  systemd:
+    name: logrotate.timer
+    state: restarted
+    daemon_reload: yes
+  when: ansible_service_mgr == "systemd"
+
+- name: validate rsyslog config
+  command: rsyslogd -N1
+  register: rsyslog_validation
+  changed_when: false
+  failed_when: 
+    - rsyslog_validation.rc != 0
+    - "'warnings' not in rsyslog_validation.stdout"
+  listen: "validate rsyslog configuration"

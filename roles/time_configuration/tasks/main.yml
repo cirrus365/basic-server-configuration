@@ -1,19 +1,152 @@
 ---
 # Time configuration
-# Set the system timezone
-- name: Set timezone to whatever set in the .env file
-  timezone:
-    name: "{{ TIMEZONE }}"  # Sets timezone using timedatectl
 
-# Install chrony package for NTP time synchronization
-- name: Install chrony for time synchronization
+# Set the system timezone
+- name: Set timezone
+  timezone:
+    name: "{{ TIMEZONE | default('UTC') }}"
+  tags: ['time', 'timezone']
+
+# Install time synchronization package based on distribution
+- name: Install chrony for time synchronization (Debian/Ubuntu)
   apt:
     name: chrony
-    state: present  # Ensures the package is installed
+    state: present
+  when: ansible_os_family == "Debian"
+  tags: ['time', 'ntp', 'packages']
 
-# Start and enable chrony service to run on boot
+- name: Install chrony for time synchronization (RHEL-based)
+  package:
+    name: chrony
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: ['time', 'ntp', 'packages']
+
+# Check if systemd-timesyncd is active (it conflicts with chrony)
+- name: Check if systemd-timesyncd is running
+  systemd:
+    name: systemd-timesyncd
+    state: stopped
+    enabled: no
+  failed_when: false
+  when: ansible_service_mgr == "systemd"
+  tags: ['time', 'ntp']
+
+# Configure chrony
+- name: Configure chrony NTP servers
+  template:
+    src: chrony.conf.j2
+    dest: "{{ chrony_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart chrony
+  tags: ['time', 'ntp', 'config']
+
+# Set variables for chrony config location
+- name: Set chrony configuration file path
+  set_fact:
+    chrony_config_file: "{{ '/etc/chrony/chrony.conf' if ansible_os_family == 'Debian' else '/etc/chrony.conf' }}"
+  tags: ['time', 'ntp']
+
+# Ensure chrony service is running
 - name: Enable and start chrony service
   service:
-    name: chrony
-    state: started  # Starts the service
-    enabled: yes    # Enables service to start on boot
+    name: "{{ chrony_service_name }}"
+    state: started
+    enabled: yes
+  tags: ['time', 'ntp', 'service']
+
+# Set chrony service name based on distribution
+- name: Set chrony service name
+  set_fact:
+    chrony_service_name: "{{ 'chrony' if ansible_os_family == 'Debian' else 'chronyd' }}"
+  tags: ['time', 'ntp']
+
+# Wait for time synchronization
+- name: Wait for time synchronization
+  command: chronyc waitsync 30 0.1
+  register: chrony_sync
+  failed_when: false
+  changed_when: false
+  tags: ['time', 'ntp', 'sync']
+
+# Check synchronization status
+- name: Check chrony synchronization status
+  command: chronyc sources -v
+  register: chrony_sources
+  changed_when: false
+  tags: ['time', 'ntp', 'check']
+
+- name: Check system time status
+  command: timedatectl status
+  register: timedatectl_status
+  changed_when: false
+  tags: ['time', 'check']
+
+# Configure RTC (Real Time Clock)
+- name: Set RTC to UTC
+  command: timedatectl set-local-rtc 0
+  when: 
+    - rtc_local is not defined or not rtc_local
+    - ansible_service_mgr == "systemd"
+  changed_when: false
+  tags: ['time', 'rtc']
+
+# SELinux context for chrony (RHEL-based)
+- name: Set SELinux context for chrony
+  seboolean:
+    name: chronyd_can_bind_ntp
+    state: yes
+    persistent: yes
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  failed_when: false
+  tags: ['time', 'ntp', 'selinux']
+
+# Configure firewall for NTP (if acting as server)
+- name: Allow NTP through firewall (UFW)
+  ufw:
+    rule: allow
+    port: 123
+    proto: udp
+  when: 
+    - ansible_os_family == "Debian"
+    - ntp_server_mode | default(false)
+  tags: ['time', 'ntp', 'firewall']
+
+- name: Allow NTP through firewall (firewalld)
+  firewalld:
+    service: ntp
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ntp_server_mode | default(false)
+  tags: ['time', 'ntp', 'firewall']
+
+# Create time configuration report
+- name: Display time configuration summary
+  debug:
+    msg: |
+      Time Configuration Summary for {{ ansible_hostname }}:
+      Timezone: {{ TIMEZONE | default('UTC') }}
+      Time Sync Service: chrony
+      NTP Synchronized: {{ 'yes' if chrony_sync.rc == 0 else 'waiting' }}
+      System Time: {{ timedatectl_status.stdout_lines[0] | default('Unknown') }}
+      RTC in UTC: {{ 'yes' if (rtc_local is not defined or not rtc_local) else 'no' }}
+  tags: ['time', 'summary']
+
+# Save configuration report
+- name: Create time configuration report
+  template:
+    src: time-report.j2
+    dest: /root/time-configuration-report.txt
+    owner: root
+    group: root
+    mode: '0600'
+  tags: ['time', 'report']

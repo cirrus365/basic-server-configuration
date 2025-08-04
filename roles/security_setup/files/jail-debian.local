@@ -1,0 +1,63 @@
+[DEFAULT]
+# Debian/Ubuntu specific configuration
+bantime = 1h
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+destemail = root@localhost
+sender = root@%(fqdn)s
+mta = sendmail
+
+# Debian/Ubuntu log paths
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 3
+bantime = 24h
+findtime = 10m
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = %(sshd_log)s
+maxretry = 10
+bantime = 1h
+findtime = 1m
+
+[apache-auth]
+enabled = false
+port = http,https
+filter = apache-auth
+logpath = /var/log/apache*/*error.log
+maxretry = 5
+bantime = 1h
+
+[apache-badbots]
+enabled = false
+port = http,https
+filter = apache-badbots
+logpath = /var/log/apache*/*access.log
+bantime = 48h
+maxretry = 1
+
+[nginx-http-auth]
+enabled = false
+port = http,https
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 5
+bantime = 1h
+
+[postfix]
+enabled = false
+port = smtp,ssmtp,submission
+filter = postfix
+logpath = /var/log/mail.log
+maxretry = 5
+bantime = 1h

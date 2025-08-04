@@ -1,12 +1,175 @@
+# Fail2ban jail configuration
+# Managed by Ansible
+
 [DEFAULT]
+# Ban duration
 bantime = 1h
+# Time window for counting failures
 findtime = 10m
+# Number of failures before ban
 maxretry = 5
+# Ignore own IP addresses
+ignoreip = 127.0.0.1/8 ::1
+# Ban action - iptables-multiport bans all ports
+banaction = iptables-multiport
+# Email notifications (configure if needed)
+destemail = root@localhost
+sender = root@{{ ansible_hostname }}
+mta = sendmail
+# Action to take: %(action_mw)s = ban + send email with whois
+action = %(action_)s
 
 [sshd]
 enabled = true
 port = ssh
 filter = sshd
-logpath = /var/log/auth.log
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
 maxretry = 3
 bantime = 24h
+findtime = 10m
+
+# Additional SSH jail for more aggressive banning of persistent attackers
+[sshd-aggressive]
+enabled = true
+port = ssh
+filter = sshd
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 1
+bantime = 1w
+findtime = 1d
+
+# Protect against SSH ddos attacks
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 10
+findtime = 1m
+bantime = 1h
+
+# Ban hosts that perform port scanning
+[portscan]
+enabled = true
+filter = portscan
+action = iptables-allports[name=portscan]
+logpath = /var/log/syslog
+maxretry = 3
+findtime = 10m
+bantime = 1h
+
+# Protect web services (if installed)
+[nginx-http-auth]
+enabled = false
+filter = nginx-http-auth
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+[nginx-limit-req]
+enabled = false
+port = http,https
+filter = nginx-limit-req
+logpath = /var/log/nginx/error.log
+maxretry = 10
+findtime = 1m
+bantime = 1h
+
+[nginx-botsearch]
+enabled = false
+port = http,https
+filter = nginx-botsearch
+logpath = /var/log/nginx/access.log
+maxretry = 2
+findtime = 10m
+bantime = 1d
+
+# Apache jails (if using Apache)
+[apache-auth]
+enabled = false
+port = http,https
+filter = apache-auth
+logpath = /var/log/apache*/*error.log
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+[apache-badbots]
+enabled = false
+port = http,https
+filter = apache-badbots
+logpath = /var/log/apache*/*access.log
+bantime = 2d
+maxretry = 2
+
+[apache-noscript]
+enabled = false
+port = http,https
+filter = apache-noscript
+logpath = /var/log/apache*/*error.log
+maxretry = 6
+
+[apache-overflows]
+enabled = false
+port = http,https
+filter = apache-overflows
+logpath = /var/log/apache*/*error.log
+maxretry = 2
+
+# Protect against authentication failures
+[pam-generic]
+enabled = true
+filter = pam-generic
+port = all
+banaction = iptables-allports
+logpath = %(syslog_authpriv)s
+backend = %(syslog_backend)s
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+# Postfix/Mail server protection
+[postfix]
+enabled = false
+port = smtp,465,submission
+filter = postfix
+logpath = /var/log/mail.log
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+[postfix-sasl]
+enabled = false
+port = smtp,465,submission,imap3,imaps,pop3,pop3s
+filter = postfix[mode=auth]
+logpath = /var/log/mail.log
+maxretry = 3
+findtime = 10m
+bantime = 24h
+
+# Protect against malicious bots
+[bad-bots]
+enabled = false
+port = http,https
+filter = bad-bots
+logpath = /var/log/nginx/access.log
+           /var/log/apache*/*access.log
+maxretry = 2
+findtime = 10m
+bantime = 1d
+
+# Recidive jail - ban IPs that get banned repeatedly
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+action = iptables-allports[name=recidive]
+         sendmail-whois-lines[name=recidive, logpath=/var/log/fail2ban.log]
+bantime = 1w
+findtime = 1d
+maxretry = 2

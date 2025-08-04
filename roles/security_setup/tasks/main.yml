@@ -1,39 +1,211 @@
 ---
 # Security setup
+
 # Install security-related packages
 - name: Install security packages
-  apt:
-    name:
-      - fail2ban  # Intrusion prevention
-      - ufw       # Firewall
+  package:
+    name: "{{ packages.security }}"
     state: present
   tags: ['security', 'packages']
 
+# Install firewall based on distribution
+- name: Install firewall package (Debian/Ubuntu)
+  package:
+    name: ufw
+    state: present
+  when: ansible_os_family == "Debian"
+  tags: ['security', 'firewall', 'packages']
+
+- name: Install firewall package (RHEL-based)
+  package:
+    name: firewalld
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: ['security', 'firewall', 'packages']
+
 # Configure fail2ban
+- name: Ensure fail2ban configuration directory exists
+  file:
+    path: /etc/fail2ban
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['security', 'fail2ban']
+
 - name: Create fail2ban jail.local file
   copy:
     dest: /etc/fail2ban/jail.local
-    src: jail.local
+    src: "jail-{{ distro_vars_file }}.local"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart fail2ban
   tags: ['security', 'fail2ban']
 
-- name: Enable fail2ban service
+- name: Create fail2ban paths-overrides.local for distribution
+  template:
+    src: paths-overrides.local.j2
+    dest: /etc/fail2ban/paths-overrides.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban
+  when: ansible_os_family == "RedHat"
+  tags: ['security', 'fail2ban']
+
+- name: Enable and start fail2ban service
   service:
     name: fail2ban
     state: started
     enabled: yes
-  tags: ['security', 'fail2ban']
+  tags: ['security', 'fail2ban', 'services']
 
-# Configure UFW to allow SSH connections
-- name: Allow OpenSSH through UFW
+# Firewall configuration - Debian/Ubuntu (UFW)
+- name: Configure UFW defaults
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  when: ansible_os_family == "Debian"
+  tags: ['security', 'firewall', 'ufw']
+
+- name: Allow SSH through UFW
   ufw:
     rule: allow
-    name: OpenSSH
-    state: enabled
-  tags: ['security', 'ufw']
+    port: "{{ ssh_port | default('22') }}"
+    proto: tcp
+    comment: "Allow SSH"
+  when: ansible_os_family == "Debian"
+  tags: ['security', 'firewall', 'ufw']
 
-# Enable UFW firewall with default deny policy
+- name: Allow additional ports through UFW
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    comment: "{{ item.comment | default('Custom rule') }}"
+  loop: "{{ firewall_allowed_ports | default([]) }}"
+  when: 
+    - ansible_os_family == "Debian"
+    - firewall_allowed_ports is defined
+  tags: ['security', 'firewall', 'ufw']
+
 - name: Enable UFW
   ufw:
     state: enabled
-    policy: deny  # Deny all incoming connections by default
-  tags: ['security', 'ufw']
+  when: ansible_os_family == "Debian"
+  tags: ['security', 'firewall', 'ufw']
+
+# Firewall configuration - RHEL-based (firewalld)
+- name: Ensure firewalld is running
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+  when: ansible_os_family == "RedHat"
+  tags: ['security', 'firewall', 'firewalld']
+
+- name: Configure firewalld SSH service
+  firewalld:
+    service: ssh
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when: ansible_os_family == "RedHat"
+  tags: ['security', 'firewall', 'firewalld']
+
+- name: Configure custom SSH port in firewalld
+  firewalld:
+    port: "{{ ssh_port }}/tcp"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ssh_port is defined
+    - ssh_port != "22"
+  tags: ['security', 'firewall', 'firewalld']
+
+- name: Configure additional firewalld rules
+  firewalld:
+    port: "{{ item.port }}/{{ item.proto | default('tcp') }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ firewall_allowed_ports | default([]) }}"
+  when: 
+    - ansible_os_family == "RedHat"
+    - firewall_allowed_ports is defined
+  tags: ['security', 'firewall', 'firewalld']
+
+# SELinux configuration (RHEL-based only)
+- name: Ensure SELinux is in enforcing mode
+  selinux:
+    policy: targeted
+    state: enforcing
+  when: 
+    - ansible_os_family == "RedHat"
+    - selinux_enforcing | default(true)
+  register: selinux_status
+  tags: ['security', 'selinux']
+
+- name: Configure SELinux for custom SSH port
+  seport:
+    ports: "{{ ssh_port }}"
+    proto: tcp
+    setype: ssh_port_t
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - ssh_port is defined
+    - ssh_port != "22"
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  tags: ['security', 'selinux']
+
+# AppArmor configuration (Debian/Ubuntu only)
+- name: Ensure AppArmor is enabled
+  service:
+    name: apparmor
+    state: started
+    enabled: yes
+  when: 
+    - ansible_os_family == "Debian"
+    - apparmor_enabled | default(true)
+  tags: ['security', 'apparmor']
+
+# Common security configurations
+- name: Set correct permissions on sensitive files
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - /etc/ssh/sshd_config
+    - /etc/sudoers
+  tags: ['security', 'permissions']
+
+- name: Disable unnecessary services
+  service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop: "{{ disable_services | default([]) }}"
+  ignore_errors: yes
+  when: disable_services is defined
+  tags: ['security', 'services']
+
+# Create security report
+- name: Generate security setup report
+  template:
+    src: security-report.j2
+    dest: /root/security-setup-report.txt
+    owner: root
+    group: root
+    mode: '0600'
+  tags: ['security', 'report']

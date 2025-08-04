@@ -1,0 +1,15 @@
+# Ansible managed - Do not edit
+# Sudo configuration for {{ item.name | default(NEW_USER_NAME) }}
+
+{% if item is defined and item.sudo is defined %}
+{% if item.sudo is mapping %}
+# Custom sudo configuration
+{{ item.name }} {{ item.sudo.hosts | default('ALL') }}=({{ item.sudo.runas | default('ALL') }}) {{ 'NOPASSWD:' if item.sudo.nopasswd | default(false) else '' }}{{ item.sudo.commands | default('ALL') }}
+{% else %}
+# Standard sudo access
+{{ item.name }} ALL=(ALL) {{ 'NOPASSWD:' if item.sudo_nopasswd | default(false) else '' }}ALL
+{% endif %}
+{% else %}
+# Standard sudo access for {{ NEW_USER_NAME | default('user') }}
+{{ NEW_USER_NAME | default(item.name) }} ALL=(ALL) ALL
+{% endif %}

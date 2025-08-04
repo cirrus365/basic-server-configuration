@@ -1,0 +1,71 @@
+---
+# Ansible inventory in YAML format
+all:
+  children:
+    servers:
+      children:
+        dev:
+          hosts:
+            dev-server:
+              ansible_host: 192.168.88.2
+              # Host-specific variables
+              # custom_var: value
+        
+        prod:
+          hosts:
+            # prod-web-01:
+            #   ansible_host: 10.0.1.10
+            #   server_role: webserver
+            # prod-web-02:
+            #   ansible_host: 10.0.1.11
+            #   server_role: webserver
+            # prod-db-01:
+            #   ansible_host: 10.0.2.10
+            #   server_role: database
+          vars:
+            env_name: production
+            enable_debug: false
+            auto_reboot_allowed: false
+        
+        staging:
+          hosts:
+            # staging-01:
+            #   ansible_host: 10.0.3.10
+          vars:
+            env_name: staging
+            enable_debug: true
+            auto_reboot_allowed: true
+      
+      vars:
+        # Authentication
+        ansible_user: "{{ lookup('env', 'ANSIBLE_USER') | default('ansible', true) }}"
+        ansible_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        ansible_become_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        
+        # Connection settings
+        ansible_port: "{{ lookup('env', 'ANSIBLE_SSH_PORT') | default('22', true) }}"
+        ansible_connection: ssh
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        
+        # Python interpreter
+        ansible_python_interpreter: auto_silent
+        
+        # Performance
+        ansible_ssh_pipelining: true
+        ansible_ssh_extra_args: '-o ControlMaster=auto -o ControlPersist=60s'
+
+    # Additional groups
+    webservers:
+      hosts:
+        # prod-web-01:
+        # prod-web-02:
+      vars:
+        nginx_worker_processes: auto
+        nginx_worker_connections: 1024
+    
+    databases:
+      hosts:
+        # prod-db-01:
+      vars:
+        mysql_max_connections: 500
+        backup_schedule: "0 2 * * *"

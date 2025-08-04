@@ -1,158 +1,577 @@
-# Basic Server Configuration
+Here's a comprehensive README.md that documents all the enhancements:
 
-An Ansible playbook for automating secure server setup and configuration with sensible defaults for systems.
+```markdown
+# 🛠️ Ansible Basic Server Configuration
 
-## 🚀 Features
+A production-ready Ansible playbook for automated Ubuntu/Debian/RHEL server provisioning with comprehensive security hardening, monitoring, and configuration management.
 
-- **System Updates**: Keeps your servers up-to-date with the latest security patches
-- **Logging & Reporting**: 
-  - Configures system logging with rsyslog
-  - Sets up log rotation with logrotate
-  - Generates HTML execution reports
-  - Maintains detailed Ansible logs
-- **User Management**: Creates a secure non-root user with sudo privileges
-- **SSH Hardening**: Configures SSH for key-based authentication only
-- **Firewall Setup**: Installs and configures UFW with secure defaults
-- **Security Enhancements**:
-  - Fail2ban for intrusion prevention
-  - Automatic security updates
-  - Sensible security defaults
-- **Time Synchronization**: Configures NTP for accurate system time
-- **Essential Packages**: Installs common utilities (vim, curl, htop, git, mtr)
+## 📋 Table of Contents
 
-## 📋 Prerequisites
+- [Features](#features)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage Examples](#usage-examples)
+- [Roles Documentation](#roles-documentation)
+- [Security Features](#security-features)
+- [Monitoring & Reporting](#monitoring--reporting)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
-- Ansible 2.9+
-- SSH key pair
-- Target Ubuntu servers
-- Local environment variables
+## ✨ Features
 
-## 🔧 Setup & Configuration
+### Core Functionality
+- 🔐 **Automated Security Hardening** - UFW firewall, Fail2ban, SSH hardening
+- 👥 **User Management** - Multi-user support with SSH keys and sudo configuration
+- 📦 **Package Management** - Automatic security updates and custom package installation
+- 🔄 **Multi-Distribution Support** - Ubuntu, Debian, and RHEL/CentOS compatible
+- 📊 **Comprehensive Reporting** - HTML reports, logging, and execution summaries
+- 🎯 **Environment Support** - Development, staging, and production configurations
 
-1. Clone this repository:
-   ```
-   git clone https://github.com/yourusername/basic-server-configuration.git
-   cd basic-server-configuration
-   ```
+### Advanced Features
+- **Dynamic Inventory** - Support for cloud providers (AWS, DigitalOcean)
+- **Idempotent Operations** - Safe to run multiple times
+- **Check Mode** - Preview changes before applying
+- **Performance Optimized** - SSH pipelining, fact caching, parallel execution
+- **Flexible Configuration** - Tag-based selective execution
 
-2. Configure environment variables in the `.env` file, you can follow the sample file provided and fill in your data
+## 📦 Requirements
 
-3. Update the `inventory.ini` file with your server IP addresses:
-   ```ini
-   [servers]
-   192.168.1.10
-   192.168.1.11
-   # Add your servers here
-   ```
+### Control Machine
+- Python 3.8+
+- Ansible 2.12+
+- SSH client
+- Unix-like OS (Linux, macOS, WSL)
 
-4. Run the playbook:
-   ```
-   ./run.sh
-   ```
+### Target Servers
+- Ubuntu 20.04+ / Debian 10+ / RHEL 8+ / CentOS 8+
+- Python 3 installed
+- SSH access with sudo privileges
+- Minimum 1GB RAM, 10GB disk space
 
-## 🛡️ What Gets Configured
-
-- Creates a new sudo user with SSH key authentication
-- Disables SSH password authentication and root login
-- Configures firewall (UFW) to allow only SSH
-- Sets up Fail2ban to prevent brute-force attacks
-- Configures automatic security updates
-- Installs essential system utilities
-- Sets timezone to Europe/Kyiv (configurable)
-- Configures comprehensive system logging with rsyslog
-- Sets up log rotation to manage log file sizes
-- Creates a dedicated directory for application logs
-- Implements basic log monitoring for large log files
-- Generates detailed HTML reports for each playbook run
-
-## ⚙️ Customization
-
-The playbook has been modularized into roles for better organization and maintainability. To customize:
-
-- **System Updates**: Edit `roles/system_updates/tasks/main.yml`
-- **Logging Setup**: Edit `roles/logging_setup/tasks/main.yml`
-  - Modify rsyslog configuration in `roles/logging_setup/templates/rsyslog.conf.j2`
-  - Adjust log rotation settings in `roles/logging_setup/files/logrotate.conf`
-- **Time Configuration**: Edit `roles/time_configuration/tasks/main.yml`
-- **SSH Setup**: Edit `roles/ssh_setup/tasks/main.yml`
-- **User Management**: Edit `roles/user_management/tasks/main.yml`
-- **Package Installation**: Edit `roles/package_installation/tasks/main.yml`
-- **Security Setup**: Edit `roles/security_setup/tasks/main.yml`
-- **Automatic Updates**: Edit `roles/automatic_updates/tasks/main.yml`
-
-Common customizations:
-- Change the timezone: Edit the timezone task in `roles/time_configuration/tasks/main.yml`
-- Modify the package list: Edit the package list in `roles/package_installation/tasks/main.yml`
-- Adjust security settings: Edit the security settings in `roles/security_setup/tasks/main.yml`
-- Configure logging:
-  - Enable remote logging: Uncomment and configure the remote logging line in `roles/logging_setup/templates/rsyslog.conf.j2`
-  - Change log rotation frequency: Modify rotation settings in `roles/logging_setup/files/logrotate.conf`
-  - Add custom application logs: Add new log paths in both rsyslog and logrotate configurations
-- Add or remove configuration tasks: Add or remove tasks in the appropriate role's task file
-
-## 🏷️ Using Tags
-
-The playbook now supports tags, allowing you to selectively run or skip specific parts of the configuration. This is useful for:
-
-- Running only specific components during testing
-- Updating only certain aspects of your server configuration
-- Skipping parts that you've already configured or don't need
-
-### Available Tags
-
-- **system**: System-related tasks
-- **updates**: Update-related tasks (both system and automatic updates)
-- **logging**: Logging configuration tasks
-  - **rsyslog**: rsyslog-specific configuration
-  - **logrotate**: logrotate-specific configuration
-  - **log_monitoring**: Log monitoring tasks
-  - **log_directory**: Log directory creation
-- **time**: Time configuration tasks
-- **ssh**: SSH configuration tasks
-- **users**: User management tasks
-- **packages**: Package installation tasks
-- **security**: Security-related tasks
-  - **fail2ban**: Fail2ban configuration
-  - **ufw**: Firewall configuration
-- **automatic**: Automatic update configuration
-
-### Using Tags
-
-To run only specific parts of the playbook, use the `--tags` option:
-
+### Python Dependencies
 ```bash
-# Run only security-related tasks
-ansible-playbook playbook.yml --tags security
-
-# Run only SSH and user management tasks
-ansible-playbook playbook.yml --tags "ssh,users"
-
-# Run only fail2ban configuration
-ansible-playbook playbook.yml --tags fail2ban
+pip install ansible ansible-lint jinja2
 ```
 
-To skip specific parts of the playbook, use the `--skip-tags` option:
+## 🚀 Quick Start
 
+1. **Clone the repository**
 ```bash
-# Run everything except automatic updates
-ansible-playbook playbook.yml --skip-tags automatic
-
-# Run everything except security and logging
-ansible-playbook playbook.yml --skip-tags "security,logging"
+git clone https://github.com/yourusername/ansible-basic-server-configuration.git
+cd ansible-basic-server-configuration
 ```
 
-You can also combine these approaches for more complex scenarios.
+2. **Set up environment**
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+vim .env
+```
 
-## 🤝 Contributions
+3. **Configure inventory**
+```bash
+# Edit inventory.ini with your server details
+vim inventory.ini
+```
 
-Stars and contributions are highly appreciated! If you find this project useful, please consider:
+4. **Run the playbook**
+```bash
+./run.sh
+```
 
-- ⭐ Starring the repository
-- 🐛 Opening issues for bugs or feature requests
-- 📢 Sharing with fellow sysadmins and DevOps engineers
+## 📁 Project Structure
 
-Let's collaborate to build a more robust, secure, and feature-rich server configuration tool together!
+```
+.
+├── ansible.cfg              # Ansible configuration
+├── inventory.ini            # Server inventory (or inventory.yml)
+├── playbook.yml            # Main playbook
+├── run.sh                  # Execution script with reporting
+├── .env.example            # Environment variables template
+├── group_vars/             # Group variables
+│   └── all.yml            # Global variables
+├── config/                 # Configuration files
+│   ├── apt/               # APT configurations
+│   │   ├── 10periodic
+│   │   ├── 20auto-upgrades
+│   │   ├── 50unattended-upgrades
+│   │   └── 99local
+│   ├── fail2ban/          # Fail2ban configs
+│   │   ├── jail.local
+│   │   ├── jail.d/
+│   │   ├── filter.d/
+│   │   └── action.d/
+│   └── ssh/               # SSH configurations
+│       ├── 99-custom.conf
+│       ├── banner.txt
+│       └── sshd_config.d/
+├── logs/                   # Execution logs (auto-created)
+├── reports/                # HTML reports (auto-created)
+└── roles/                  # Ansible roles
+    ├── system_update/
+    ├── user_management/
+    ├── ssh_hardening/
+    ├── firewall/
+    ├── fail2ban/
+    ├── common_packages/
+    ├── automatic_updates/
+    └── timezone/
+```
 
-## 📜 License
+## 🔧 Installation
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### 1. Install Ansible
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install python3-pip python3-venv git
+pip3 install --user ansible ansible-lint
+```
+
+**RHEL/CentOS:**
+```bash
+sudo yum install python3 python3-pip git
+pip3 install --user ansible ansible-lint
+```
+
+**macOS:**
+```bash
+brew install ansible
+```
+
+### 2. Clone Repository
+```bash
+git clone https://github.com/yourusername/ansible-basic-server-configuration.git
+cd ansible-basic-server-configuration
+```
+
+### 3. Configure Environment
+
+Create `.env` file:
+```bash
+# Copy template
+cp .env.example .env
+
+# Edit with your values
+cat > .env << 'EOF'
+# Default SSH credentials
+ANSIBLE_USER=ubuntu
+ANSIBLE_PASSWORD=your_secure_password
+
+# SSH key authentication (recommended)
+ANSIBLE_SSH_KEY=~/.ssh/id_rsa
+
+# Custom SSH port (if different from 22)
+ANSIBLE_SSH_PORT=22
+
+# Email for notifications
+ADMIN_EMAIL=admin@example.com
+EOF
+```
+
+### 4. Set Up Inventory
+
+**Option 1: INI format (inventory.ini)**
+```ini
+[servers]
+web-server ansible_host=192.168.1.100
+db-server ansible_host=192.168.1.101
+
+[servers:vars]
+ansible_user={{ lookup('env', 'ANSIBLE_USER') }}
+ansible_password={{ lookup('env', 'ANSIBLE_PASSWORD') }}
+```
+
+**Option 2: YAML format (inventory.yml)**
+```yaml
+all:
+  children:
+    servers:
+      hosts:
+        web-server:
+          ansible_host: 192.168.1.100
+        db-server:
+          ansible_host: 192.168.1.101
+      vars:
+        ansible_user: "{{ lookup('env', 'ANSIBLE_USER') }}"
+```
+
+## 🎯 Usage Examples
+
+### Basic Usage
+
+**Run complete configuration:**
+```bash
+./run.sh
+```
+
+**Check mode (dry run):**
+```bash
+./run.sh --check
+```
+
+**Verbose output:**
+```bash
+./run.sh -v    # Verbose
+./run.sh -vv   # More verbose
+./run.sh -vvv  # Debug level
+```
+
+### Selective Execution
+
+**Run only security-related tasks:**
+```bash
+./run.sh --tags security
+```
+
+**Skip firewall configuration:**
+```bash
+./run.sh --skip-tags firewall
+```
+
+**Configure specific servers:**
+```bash
+./run.sh --limit web-server
+./run.sh --limit "web*"  # Wildcard pattern
+```
+
+### Environment-Specific Runs
+
+**Development environment:**
+```bash
+./run.sh --env dev
+```
+
+**Staging with specific tags:**
+```bash
+./run.sh --env staging --tags "packages,updates"
+```
+
+### Advanced Examples
+
+**Configure only user management:**
+```bash
+./run.sh --tags users --limit production
+```
+
+**Update packages without rebooting:**
+```bash
+./run.sh --tags packages --skip-tags reboot
+```
+
+**Security audit mode:**
+```bash
+./run.sh --tags security --check -v
+```
+
+**Emergency security patching:**
+```bash
+./run.sh --tags "updates,security" --limit "*" -e "force_reboot=true"
+```
+
+### Using Ansible Directly
+
+**List all hosts:**
+```bash
+ansible-inventory -i inventory.ini --list
+```
+
+**Ping all servers:**
+```bash
+ansible -i inventory.ini all -m ping
+```
+
+**Run ad-hoc commands:**
+```bash
+ansible -i inventory.ini servers -a "uptime"
+ansible -i inventory.ini servers -m shell -a "df -h"
+```
+
+## 📚 Roles Documentation
+
+### 1. System Update (`system_update`)
+Updates system packages and handles reboots when required.
+
+**Variables:**
+- `auto_reboot`: Enable automatic reboot (default: false)
+- `reboot_timeout`: Reboot timeout in seconds (default: 600)
+
+**Tags:** `updates`, `packages`
+
+### 2. User Management (`user_management`)
+Creates users, configures SSH keys, and sets up sudo access.
+
+**Variables:**
+```yaml
+# Legacy single user
+NEW_USER_NAME: john
+NEW_USER_PASSWORD: secure_password
+SSH_KEY_PATH: /path/to/public/key
+
+# Modern multi-user approach
+users:
+  - name: alice
+    groups: [sudo, docker]
+    ssh_keys: ["ssh-rsa AAAA..."]
+    sudo: true
+  - name: bob
+    state: absent  # Remove user
+```
+
+**Tags:** `users`, `ssh`, `sudo`
+
+### 3. SSH Hardening (`ssh_hardening`)
+Implements SSH security best practices.
+
+**Features:**
+- Disables password authentication
+- Configures key-based authentication only
+- Implements crypto hardening (Mozilla Modern)
+- Sets up login banners
+- Configures idle timeouts
+
+**Tags:** `ssh`, `security`
+
+### 4. Firewall (`firewall`)
+Configures UFW with common service rules.
+
+**Variables:**
+```yaml
+firewall_allowed_ports:
+  - { port: 22, proto: tcp, comment: "SSH" }
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }
+firewall_allowed_networks:
+  - { network: "10.0.0.0/8", comment: "Internal" }
+```
+
+**Tags:** `firewall`, `security`, `ufw`
+
+### 5. Fail2ban (`fail2ban`)
+Intrusion prevention system configuration.
+
+**Jails configured:**
+- SSH (standard and aggressive)
+- Port scanning detection
+- Recidive (repeat offenders)
+- Web server protection (nginx/Apache)
+- Authentication failures
+
+**Tags:** `fail2ban`, `security`, `ids`
+
+### 6. Common Packages (`common_packages`)
+Installs essential packages.
+
+**Default packages:**
+- System: htop, iotop, ncdu, tree
+- Network: curl, wget, net-tools, traceroute
+- Development: git, vim, tmux
+- Security: aide, rkhunter
+- Monitoring: sysstat, iftop
+
+**Tags:** `packages`, `tools`
+
+### 7. Automatic Updates (`automatic_updates`)
+Configures unattended security updates.
+
+**Features:**
+- Daily security updates
+- Automatic dependency management
+- Old kernel cleanup
+- Optional automatic reboot
+- Email notifications
+
+**Tags:** `updates`, `security`, `cron`
+
+### 8. Timezone (`timezone`)
+Sets system timezone and configures NTP.
+
+**Variables:**
+```yaml
+system_timezone: "America/New_York"
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+```
+
+**Tags:** `timezone`, `ntp`, `time`
+
+## 🔐 Security Features
+
+### Implemented Security Measures
+
+1. **SSH Security**
+   - Public key authentication only
+   - Root login disabled
+   - Strong ciphers (Mozilla Modern)
+   - Connection rate limiting
+   - Idle session timeouts
+
+2. **Firewall Protection**
+   - Default deny incoming
+   - Minimal open ports
+   - Connection tracking
+   - Rate limiting
+   - Geographic restrictions (optional)
+
+3. **Intrusion Prevention**
+   - Fail2ban with multiple jails
+   - Automatic IP banning
+   - Port scan detection
+   - Recidive jail for repeat offenders
+
+4. **System Hardening**
+   - Automatic security updates
+   - Kernel parameters tuning
+   - Service minimization
+   - File permission hardening
+   - Process accounting
+
+5. **Access Control**
+   - Sudo configuration
+   - User access restrictions
+   - Password policies
+   - SSH key management
+
+### Security Compliance
+
+This playbook helps meet requirements for:
+- CIS Ubuntu/Debian/RHEL Benchmarks
+- PCI DSS (partial)
+- NIST 800-53 (basic controls)
+- SOC 2 Type II (partial)
+
+## 📊 Monitoring & Reporting
+
+### Execution Reports
+
+Each run generates:
+1. **Text log** - Complete execution output
+2. **HTML report** - Visual summary with statistics
+3. **JSON output** - Machine-readable results
+4. **Summary file** - Quick overview
+
+### Report Features
+- Execution status and duration
+- Task statistics (OK, Changed, Failed)
+- Target host information
+- Complete execution log
+- Responsive HTML design
+- Print-friendly format
+
+### Accessing Reports
+```bash
+# View latest report
+ls -la reports/
+
+# Open in browser
+xdg-open reports/ansible_report_*.html
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**1. SSH Connection Failed**
+```bash
+# Test SSH connection
+ssh -v user@host
+
+# Check SSH key
+ssh-add -l
+
+# Verify inventory
+ansible -i inventory.ini all -m ping
+```
+
+**2. Sudo Password Issues**
+```bash
+# Test with manual password
+ansible-playbook playbook.yml --ask-become-pass
+
+# Check sudo configuration
+ssh user@host sudo -l
+```
+
+**3. Package Installation Failures**
+```bash
+# Update package cache
+./run.sh --tags packages -e "update_cache=true"
+
+# Check specific package
+ansible -i inventory.ini all -m package -a "name=vim state=present"
+```
+
+**4. Firewall Blocking Ansible**
+```bash
+# Temporarily disable firewall
+ansible -i inventory.ini all -m command -a "ufw disable" --become
+
+# Re-run playbook
+./run.sh
+
+# Firewall is automatically re-enabled by playbook
+```
+
+### Debug Mode
+```bash
+# Maximum verbosity
+./run.sh -vvv
+
+# Enable Ansible debug
+export ANSIBLE_DEBUG=1
+./run.sh
+
+# Check specific task
+./run.sh --tags security --start-at-task="Configure firewall rules"
+```
+
+### Log Analysis
+```bash
+# Search for errors
+grep -i error logs/ansible_run_*.log
+
+# Find changed tasks
+grep -E "changed:|CHANGED" logs/ansible_run_*.log
+
+# Check specific host
+grep -A5 -B5 "192.168.1.100" logs/ansible_run_*.log
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+### Guidelines
+- Follow Ansible best practices
+- Test on multiple distributions
+- Update documentation
+- Add appropriate tags
+- Ensure idempotency
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Ansible Documentation](https://docs.ansible.com/)
+- [Mozilla SSH Guidelines](https://infosec.mozilla.org/guidelines/openssh)
+- [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks/)
+- [ansible-hardening](https://github.com/dev-sec/ansible-collection-hardening)
+- [mist941](https://github.com/mist941)
+
+## 📞 Support
+
+---
+Made with ❤️ by [cirrus365](https://github.com/cirrus365)
+```

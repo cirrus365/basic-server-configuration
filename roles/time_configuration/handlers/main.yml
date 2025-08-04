@@ -1,0 +1,10 @@
+---
+- name: restart chrony
+  service:
+    name: "{{ chrony_service_name | default('chrony' if ansible_os_family == 'Debian' else 'chronyd') }}"
+    state: restarted
+
+- name: restart systemd-timesyncd
+  service:
+    name: systemd-timesyncd
+    state: restarted
