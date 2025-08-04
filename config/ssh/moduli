@@ -1,0 +1,3 @@
+# Generate with: ssh-keygen -M generate -O bits=3072 moduli.candidates
+# Then: ssh-keygen -M screen -f moduli.candidates moduli
+# This should contain only 3072+ bit moduli for better security

@@ -1,0 +1,12 @@
+# Additional APT periodic configuration
+# Backup level (0=disable, 1=dpkg, 2=dpkg+conffiles)
+APT::Periodic::BackUpArchiveInterval "0";
+
+# Max age of cache in days
+APT::Periodic::MaxAge "0";
+
+# Min age of cache in days
+APT::Periodic::MinAge "2";
+
+# Max size of cache in MB
+APT::Periodic::MaxSize "0";

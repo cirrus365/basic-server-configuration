@@ -1,11 +1,198 @@
 ---
 # System updates
-# Update the apt package cache to get the latest package information
-- name: Update apt
-  apt:
-    update_cache: true  # Equivalent to 'apt-get update'
 
-# Upgrade all installed packages to their latest versions
-- name: Upgrade all packages
+# Debian/Ubuntu updates
+- name: Update apt cache
   apt:
-    upgrade: dist  # Equivalent to 'apt-get dist-upgrade'
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  tags: ['updates', 'apt']
+
+- name: Upgrade all packages (Debian/Ubuntu)
+  apt:
+    upgrade: dist
+    update_cache: yes
+    force_apt_get: yes
+  when: ansible_os_family == "Debian"
+  register: apt_upgrade_result
+  tags: ['updates', 'apt', 'upgrade']
+
+- name: Remove unnecessary packages (Debian/Ubuntu)
+  apt:
+    autoremove: yes
+    purge: yes
+  when: ansible_os_family == "Debian"
+  tags: ['updates', 'apt', 'cleanup']
+
+# RHEL-based updates
+- name: Update yum cache (RHEL/CentOS 7)
+  yum:
+    update_cache: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int < 8
+  tags: ['updates', 'yum']
+
+- name: Upgrade all packages (RHEL/CentOS 7)
+  yum:
+    name: '*'
+    state: latest
+    update_cache: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int < 8
+  register: yum_upgrade_result
+  tags: ['updates', 'yum', 'upgrade']
+
+- name: Update dnf cache (RHEL/CentOS 8+)
+  dnf:
+    update_cache: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int >= 8
+  tags: ['updates', 'dnf']
+
+- name: Upgrade all packages (RHEL/CentOS 8+)
+  dnf:
+    name: '*'
+    state: latest
+    update_cache: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version|int >= 8
+  register: dnf_upgrade_result
+  tags: ['updates', 'dnf', 'upgrade']
+
+- name: Remove unnecessary packages (RHEL-based)
+  package:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ packages_to_remove | default([]) }}"
+  when: 
+    - ansible_os_family == "RedHat"
+    - packages_to_remove is defined
+  tags: ['updates', 'cleanup']
+
+# Check if reboot is required (based on jeffgeerling.com approach)
+- name: Check if a reboot is required (Debian/Ubuntu)
+  stat:
+    path: /var/run/reboot-required
+    get_checksum: no
+  register: reboot_required_file
+  when: ansible_os_family == "Debian"
+  tags: ['updates', 'reboot-check']
+
+- name: Check if a reboot is required (RHEL-based)
+  shell: needs-restarting -r
+  register: needs_restarting_result
+  failed_when: needs_restarting_result.rc > 1
+  changed_when: false
+  when: ansible_os_family == "RedHat"
+  tags: ['updates', 'reboot-check']
+
+# Set reboot fact
+- name: Set reboot required fact
+  set_fact:
+    reboot_required: >-
+      {{
+        (ansible_os_family == "Debian" and reboot_required_file.stat.exists) or
+        (ansible_os_family == "RedHat" and needs_restarting_result.rc == 1)
+      }}
+  tags: ['updates', 'reboot-check']
+
+# Display update results
+- name: Display update summary
+  debug:
+    msg: |
+      System Update Summary for {{ ansible_hostname }}:
+      Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      {% if ansible_os_family == "Debian" %}
+      Packages upgraded: {{ apt_upgrade_result.changed | default(false) }}
+      {% elif ansible_os_family == "RedHat" %}
+      Packages upgraded: {{ (yum_upgrade_result.changed | default(false)) or (dnf_upgrade_result.changed | default(false)) }}
+      {% endif %}
+      Reboot required: {{ reboot_required | default(false) }}
+  tags: ['updates', 'summary']
+
+# Reboot if required (optional)
+- name: Reboot the server (if required)
+  reboot:
+    msg: "Reboot initiated by Ansible for system updates"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+  when: 
+    - reboot_required | default(false)
+    - allow_reboot | default(false)
+  tags: ['updates', 'reboot']
+
+# Install unattended upgrades (optional security feature)
+- name: Install unattended-upgrades (Debian/Ubuntu)
+  apt:
+    name: unattended-upgrades
+    state: present
+  when: 
+    - ansible_os_family == "Debian"
+    - enable_auto_updates | default(false)
+  tags: ['updates', 'auto-updates']
+
+- name: Configure unattended-upgrades
+  template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+  when: 
+    - ansible_os_family == "Debian"
+    - enable_auto_updates | default(false)
+  tags: ['updates', 'auto-updates']
+
+- name: Install yum-cron (RHEL/CentOS)
+  package:
+    name: yum-cron
+    state: present
+  when: 
+    - ansible_os_family == "RedHat"
+    - enable_auto_updates | default(false)
+  tags: ['updates', 'auto-updates']
+
+- name: Configure and enable yum-cron
+  service:
+    name: yum-cron
+    state: started
+    enabled: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - enable_auto_updates | default(false)
+  tags: ['updates', 'auto-updates']
+
+# Clean package cache
+- name: Clean package cache (Debian/Ubuntu)
+  apt:
+    autoclean: yes
+  when: 
+    - ansible_os_family == "Debian"
+    - clean_package_cache | default(true)
+  tags: ['updates', 'cleanup']
+
+- name: Clean package cache (RHEL-based)
+  command: "{{ package_manager }} clean all"
+  vars:
+    package_manager: "{{ 'dnf' if ansible_distribution_major_version|int >= 8 else 'yum' }}"
+  args:
+    warn: false
+  when: 
+    - ansible_os_family == "RedHat"
+    - clean_package_cache | default(true)
+  changed_when: false
+  tags: ['updates', 'cleanup']
+
+# Update package facts after upgrades
+- name: Update package facts
+  package_facts:
+    manager: auto
+  tags: ['updates', 'facts']

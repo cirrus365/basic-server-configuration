@@ -1,0 +1,21 @@
+---
+- name: restart fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+
+- name: restart firewalld
+  service:
+    name: firewalld
+    state: restarted
+  when: ansible_os_family == "RedHat"
+
+- name: reload firewalld
+  command: firewall-cmd --reload
+  when: ansible_os_family == "RedHat"
+
+- name: restart ufw
+  service:
+    name: ufw
+    state: restarted
+  when: ansible_os_family == "Debian"

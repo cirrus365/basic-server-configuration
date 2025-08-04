@@ -1,23 +1,24 @@
 ---
 # Automatic updates configuration
-# Install unattended-upgrades package
-- name: Install unattended-upgrades
+
+# Ubuntu/Debian automatic updates
+- name: Install unattended-upgrades (Debian/Ubuntu)
   apt:
     name: unattended-upgrades
     state: present
+  when: ansible_os_family == "Debian"
   tags: ['updates', 'automatic']
 
-# Enable automatic updates through debconf
-- name: Enable unattended-upgrades
+- name: Enable unattended-upgrades (Debian/Ubuntu)
   debconf:
     name: unattended-upgrades
     question: unattended-upgrades/enable_auto_updates
     value: "true"
     vtype: boolean
+  when: ansible_os_family == "Debian"
   tags: ['updates', 'automatic']
 
-# Configure unattended-upgrades behavior
-- name: Configure unattended-upgrades
+- name: Configure unattended-upgrades (Debian/Ubuntu)
   blockinfile:
     path: /etc/apt/apt.conf.d/50unattended-upgrades
     create: yes
@@ -28,24 +29,68 @@
           "${distro_id}ESMApps:${distro_codename}-apps-security";
           "${distro_id}ESM:${distro_codename}-infra-security";
       };
-      Unattended-Upgrade::AutoFixInterruptedDpkg "true";  # Fix interrupted upgrades
-      Unattended-Upgrade::MinimalSteps "true";            # Use minimal steps
-      Unattended-Upgrade::InstallOnShutdown "false";      # Don't install on shutdown
-      Unattended-Upgrade::Remove-Unused-Dependencies "true";  # Clean up
-      Unattended-Upgrade::Automatic-Reboot "false";       # Don't reboot automatically
+      Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+      Unattended-Upgrade::MinimalSteps "true";
+      Unattended-Upgrade::InstallOnShutdown "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Automatic-Reboot "false";
+  when: ansible_os_family == "Debian"
   tags: ['updates', 'automatic']
 
-# Configure automatic update schedule
-- name: Configure automatic updates
+- name: Configure automatic updates schedule (Debian/Ubuntu)
   copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     src: 20auto-upgrades
+  when: ansible_os_family == "Debian"
   tags: ['updates', 'automatic']
 
-# Start and enable unattended-upgrades service
-- name: Start and enable unattended-upgrades service
+- name: Start and enable unattended-upgrades service (Debian/Ubuntu)
   service:
     name: unattended-upgrades
     state: started
     enabled: yes
+  when: ansible_os_family == "Debian"
+  tags: ['updates', 'automatic']
+
+# RHEL-based automatic updates
+- name: Install dnf-automatic (RHEL-based)
+  package:
+    name: dnf-automatic
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: ['updates', 'automatic']
+
+- name: Configure dnf-automatic (RHEL-based)
+  ini_file:
+    path: /etc/dnf/automatic.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  loop:
+    - { section: 'commands', option: 'upgrade_type', value: 'security' }
+    - { section: 'commands', option: 'random_sleep', value: '360' }
+    - { section: 'commands', option: 'download_updates', value: 'yes' }
+    - { section: 'commands', option: 'apply_updates', value: 'yes' }
+    - { section: 'emitters', option: 'emit_via', value: 'stdio' }
+    - { section: 'emitters', option: 'output_width', value: '80' }
+    - { section: 'email', option: 'email_from', value: 'root@localhost' }
+    - { section: 'email', option: 'email_to', value: 'root' }
+    - { section: 'email', option: 'email_host', value: 'localhost' }
+    - { section: 'base', option: 'debuglevel', value: '1' }
+  when: ansible_os_family == "RedHat"
+  tags: ['updates', 'automatic']
+
+- name: Enable and start dnf-automatic timer (RHEL-based)
+  systemd:
+    name: dnf-automatic.timer
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: ansible_os_family == "RedHat"
+  tags: ['updates', 'automatic']
+
+# Common post-configuration message
+- name: Display automatic updates configuration status
+  debug:
+    msg: "Automatic security updates have been configured for {{ ansible_distribution }}"
   tags: ['updates', 'automatic']

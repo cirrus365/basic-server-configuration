@@ -1,42 +1,203 @@
 ---
-# Root user SSH setup
-# Create SSH directory for the root user
-- name: Create SSH directory for the root user
-  file:
-    path: "/{{ ANSIBLE_USER }}/.ssh"
-    state: directory
-    mode: '0700'
-  tags: ['ssh']
+# SSH setup and hardening
 
-# Add SSH key to root user's authorized_keys
+# Install OpenSSH server
+- name: Ensure OpenSSH server is installed
+  package:
+    name: "{{ packages.ssh_package }}"
+    state: present
+  tags: ['ssh', 'packages']
+
+# Create SSH directory for users
+- name: Create SSH directory for configured users
+  file:
+    path: "/home/{{ item }}/.ssh"
+    state: directory
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0700'
+  loop: "{{ ssh_users | default([]) }}"
+  when: ssh_users is defined
+  tags: ['ssh', 'users']
+
+# Create SSH directory for root
+- name: Create SSH directory for root user
+  file:
+    path: "/root/.ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags: ['ssh', 'root']
+
+# Deploy SSH keys for users
+- name: Add SSH keys to user authorized_keys
+  authorized_key:
+    user: "{{ item.user }}"
+    key: "{{ item.key }}"
+    state: present
+    exclusive: "{{ item.exclusive | default(false) }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ssh_authorized_keys | default([]) }}"
+  when: ssh_authorized_keys is defined
+  tags: ['ssh', 'keys']
+
+# Deploy SSH key from file for root (backward compatibility)
 - name: Add SSH key to root user's authorized_keys
   authorized_key:
-    user: "{{ ANSIBLE_USER }}"
+    user: root
     key: "{{ lookup('file', SSH_KEY_PATH) }}"
     state: present
-  tags: ['ssh']
+  when: SSH_KEY_PATH is defined
+  tags: ['ssh', 'root', 'keys']
 
-# Configure SSH daemon for security
-- name: Configure secure SSH configuration
+# Check if sshd_config.d directory is supported
+- name: Check for sshd_config.d directory support
+  stat:
+    path: /etc/ssh/sshd_config
+  register: sshd_config_stat
+  tags: ['ssh', 'config']
+
+- name: Check if Include directive exists in sshd_config
+  command: grep -E "^Include\s+/etc/ssh/sshd_config.d/\*.conf" /etc/ssh/sshd_config
+  register: include_check
+  failed_when: false
+  changed_when: false
+  tags: ['ssh', 'config']
+
+# Create sshd_config.d directory if supported
+- name: Create sshd_config.d directory
+  file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: include_check.rc == 0
+  tags: ['ssh', 'config']
+
+# Deploy SSH banner
+- name: Deploy SSH login banner
+  copy:
+    src: banner.txt
+    dest: /etc/ssh/banner.txt
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['ssh', 'banner']
+
+# Modern config approach (sshd_config.d)
+- name: Deploy SSH security configuration (modern approach)
+  copy:
+    src: "99-security-{{ distro_vars_file }}.conf"
+    dest: /etc/ssh/sshd_config.d/99-security.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when: include_check.rc == 0
+  notify:
+    - validate ssh configuration
+    - restart ssh safely
+  tags: ['ssh', 'config', 'security']
+
+# Legacy config approach (direct sshd_config modification)
+- name: Configure SSH security (legacy approach)
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
     state: present
+    backup: yes
   loop:
-    - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin prohibit-password' } 
-    - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }  # Disable password auth
-    - { regexp: '^#?ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }  # Disable challenge-response auth
-    - { regexp: '^#?UsePAM', line: 'UsePAM no' }  # Disable PAM authentication
-    - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }  # Ensure public key authentication is enabled
-  notify: restart ssh  # Triggers SSH service restart when config changes
-  tags: ['ssh']
+    - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin prohibit-password' }
+    - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^#?ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }
+    - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+    - { regexp: '^#?UsePAM', line: 'UsePAM yes' }  # Keep PAM enabled for better compatibility
+    - { regexp: '^#?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+    - { regexp: '^#?X11Forwarding', line: 'X11Forwarding no' }
+    - { regexp: '^#?MaxAuthTries', line: 'MaxAuthTries 3' }
+    - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 300' }
+    - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 2' }
+    - { regexp: '^#?Banner', line: 'Banner /etc/ssh/banner.txt' }
+  when: include_check.rc != 0
+  notify:
+    - validate ssh configuration
+    - restart ssh safely
+  tags: ['ssh', 'config', 'security']
 
-# Create custom SSH config
-- name: Create custom SSH config
-  copy:
-    src: 99-custom.conf
-    dest: /etc/ssh/sshd_config.d/99-custom.conf
+# Configure custom SSH port if specified
+- name: Configure custom SSH port
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Port'
+    line: "Port {{ ssh_port }}"
+    state: present
+  when: ssh_port is defined and ssh_port != "22"
+  notify:
+    - validate ssh configuration
+    - restart ssh safely
+  tags: ['ssh', 'config', 'port']
+
+# SELinux context for custom SSH port
+- name: Set SELinux context for custom SSH port
+  seport:
+    ports: "{{ ssh_port }}"
+    proto: tcp
+    setype: ssh_port_t
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - ssh_port is defined
+    - ssh_port != "22"
+    - ansible_selinux.status is defined
+    - ansible_selinux.status == "enabled"
+  tags: ['ssh', 'selinux', 'port']
+
+# Ensure SSH service is started and enabled
+- name: Ensure SSH service is started and enabled
+  service:
+    name: "{{ ssh_service }}"
+    state: started
+    enabled: yes
+  tags: ['ssh', 'service']
+
+# Generate host keys if missing
+- name: Generate SSH host keys if missing
+  command: ssh-keygen -A
+  args:
+    creates: /etc/ssh/ssh_host_rsa_key
+  tags: ['ssh', 'hostkeys']
+
+# Create SSH client configuration
+- name: Create SSH client configuration
+  template:
+    src: ssh_config.j2
+    dest: /etc/ssh/ssh_config.d/99-security.conf
+    owner: root
+    group: root
     mode: '0644'
-  notify: restart ssh
-  tags: ['ssh']
+  when: ansible_os_family == "Debian"  # RHEL doesn't typically use ssh_config.d
+  tags: ['ssh', 'client']
+
+# Set secure permissions on SSH files
+- name: Ensure correct permissions on SSH configuration files
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - /etc/ssh/sshd_config
+  tags: ['ssh', 'permissions']
+
+# Create summary report
+- name: Create SSH configuration summary
+  template:
+    src: ssh-summary.j2
+    dest: /root/ssh-configuration-summary.txt
+    owner: root
+    group: root
+    mode: '0600'
+  tags: ['ssh', 'report']

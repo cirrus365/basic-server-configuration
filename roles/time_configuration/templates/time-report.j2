@@ -1,0 +1,26 @@
+Time Configuration Report
+Generated: {{ ansible_date_time.iso8601 }}
+Host: {{ ansible_hostname }}
+Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+TIMEZONE CONFIGURATION:
+- Current Timezone: {{ TIMEZONE | default('UTC') }}
+- Local Time: {{ ansible_date_time.time }}
+- UTC Time: {{ ansible_date_time.iso8601_micro }}
+- RTC in Local Time: {{ 'No (UTC)' if (rtc_local is not defined or not rtc_local) else 'Yes' }}
+
+NTP CONFIGURATION:
+- NTP Service: chrony
+- Service Status: {{ 'Active' if ansible_facts.services[chrony_service_name + '.service'].state == 'running' else 'Inactive' }}
+- Configuration File: {{ chrony_config_file }}
+
+NTP SERVERS:
+{% for server in ntp_servers | default(default_ntp_servers) %}
+- {{ server }}
+{% endfor %}
+
+SYNCHRONIZATION STATUS:
+{{ chrony_sources.stdout if chrony_sources is defined else 'Not available' }}
+
+TIMEDATECTL STATUS:
+{{ timedatectl_status.stdout if timedatectl_status is defined else 'Not available' }}

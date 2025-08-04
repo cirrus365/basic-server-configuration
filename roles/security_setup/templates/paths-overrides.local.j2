@@ -1,0 +1,10 @@
+# Fail2ban paths override for {{ ansible_distribution }}
+{% if ansible_os_family == "RedHat" %}
+[DEFAULT]
+sshd_log = /var/log/secure
+sshd_backend = systemd
+
+[sshd]
+logpath = /var/log/secure
+backend = systemd
+{% endif %}

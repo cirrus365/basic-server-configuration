@@ -1,0 +1,86 @@
+// Automatically upgrade packages from these origins
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}";
+    "${distro_id}:${distro_codename}-security";
+    "${distro_id}:${distro_codename}-updates";
+    // "${distro_id}:${distro_codename}-proposed";
+    // "${distro_id}:${distro_codename}-backports";
+    "${distro_id}ESMApps:${distro_codename}-apps-security";
+    "${distro_id}ESM:${distro_codename}-infra-security";
+};
+
+// Python regular expressions, matching packages to exclude
+Unattended-Upgrade::Package-Blacklist {
+    // Exclude kernel packages (uncomment if needed)
+    // "linux-image-.*";
+    // "linux-headers-.*";
+    // "linux-generic.*";
+    // "linux-restricted-modules-.*";
+    
+    // Exclude specific problematic packages
+    // "postgresql-.*";
+    // "mysql-server.*";
+    // "mariadb-server.*";
+};
+
+// This option controls whether the development release of Ubuntu will be
+// upgraded automatically. Valid values are "true", "false", and "auto".
+Unattended-Upgrade::DevRelease "false";
+
+// Automatically fix interrupted dpkg
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+
+// Split the upgrade into the smallest possible chunks
+Unattended-Upgrade::MinimalSteps "true";
+
+// Install all updates when the machine is shutting down
+Unattended-Upgrade::InstallOnShutdown "false";
+
+// Send email to this address for problems or packages upgrades
+Unattended-Upgrade::Mail "";
+
+// Set this value to one of:
+//    "always", "only-on-error" or "on-change"
+Unattended-Upgrade::MailReport "only-on-error";
+
+// Remove unused automatically installed kernel-related packages
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+
+// Do automatic removal of newly unused dependencies after the upgrade
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+
+// Remove unused packages after the upgrade
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+// Automatically reboot *WITHOUT CONFIRMATION* if
+// the file /var/run/reboot-required is found after the upgrade
+Unattended-Upgrade::Automatic-Reboot "false";
+
+// Automatically reboot even if there are users currently logged in
+// when Unattended-Upgrade::Automatic-Reboot is set to true
+Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+
+// If automatic reboot is enabled and needed, reboot at the specific
+// time instead of immediately
+// Default: "now"
+Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+
+// Use apt bandwidth limit feature, this example limits the download
+// speed to 70kb/sec
+// Acquire::http::Dl-Limit "70";
+
+// Enable logging to syslog
+Unattended-Upgrade::SyslogEnable "true";
+
+// Specify syslog facility
+Unattended-Upgrade::SyslogFacility "daemon";
+
+// Download and install upgrades only on AC power
+// (i.e. skip or gracefully stop updates on battery)
+Unattended-Upgrade::OnlyOnACPower "true";
+
+// Download and install upgrades only on non-metered connection
+Unattended-Upgrade::Skip-Updates-On-Metered-Connections "true";
+
+// Enable debugging output
+// Unattended-Upgrade::Debug "false";

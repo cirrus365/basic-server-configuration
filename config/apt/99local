@@ -1,0 +1,24 @@
+# Local APT preferences
+# Managed by Ansible
+
+# Always prefer packages from stable/security
+APT::Default-Release "stable";
+
+# Don't install recommended packages automatically
+APT::Install-Recommends "false";
+
+# Don't install suggested packages
+APT::Install-Suggests "false";
+
+# Clean packages automatically
+APT::Clean-Installed "true";
+
+# Use IPv4 only (uncomment if IPv6 causes issues)
+# Acquire::ForceIPv4 "true";
+
+# Parallel downloads (for newer APT versions)
+# Acquire::Queue-Mode "host";
+# Acquire::Retries "3";
+
+# Progress display
+Dpkg::Progress-Fancy "1";

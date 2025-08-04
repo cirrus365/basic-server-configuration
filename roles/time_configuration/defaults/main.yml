@@ -1,0 +1,26 @@
+---
+# Default timezone (override with TIMEZONE variable)
+TIMEZONE: UTC
+
+# Default NTP servers
+default_ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+  - 3.pool.ntp.org
+
+# Custom NTP servers (optional)
+# ntp_servers:
+#   - time1.google.com
+#   - time2.google.com
+
+# Enable NTP server mode
+ntp_server_mode: false
+
+# Networks allowed to query NTP (for server mode)
+# ntp_allow_networks:
+#   - 192.168.0.0/16
+#   - 10.0.0.0/8
+
+# RTC in local time (not recommended)
+rtc_local: false

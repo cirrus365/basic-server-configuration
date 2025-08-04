@@ -1,0 +1,19 @@
+---
+# Common variables for all distributions
+new_user: "{{ lookup('env', 'NEW_USER') }}"
+new_user_password: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
+ssh_public_key: "{{ lookup('env', 'SSH_PUBLIC_KEY') }}"
+timezone: "Europe/Kyiv"
+
+# Distribution mapping
+distro_vars_map:
+  Ubuntu: ubuntu
+  Debian: debian
+  RedHat: redhat
+  CentOS: redhat
+  Rocky: redhat
+  AlmaLinux: redhat
+  OracleLinux: redhat
+
+# Load distribution-specific variables
+distro_vars_file: "{{ distro_vars_map[ansible_distribution] | default('ubuntu') }}"

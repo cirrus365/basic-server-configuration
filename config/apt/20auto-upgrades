@@ -1,4 +1,20 @@
-APT::Periodic::Update-Package-Lists "1";           # Update package lists daily
-APT::Periodic::Download-Upgradeable-Packages "1";  # Download upgrades daily
-APT::Periodic::Unattended-Upgrade "1";             # Run unattended upgrade daily
-APT::Periodic::AutocleanInterval "7";              # Clean up weekly
+# Enable automatic updates
+APT::Periodic::Enable "1";
+
+# Update package lists daily
+APT::Periodic::Update-Package-Lists "1";
+
+# Download upgradeable packages daily
+APT::Periodic::Download-Upgradeable-Packages "1";
+
+# Run unattended upgrade daily
+APT::Periodic::Unattended-Upgrade "1";
+
+# Autoclean interval (remove obsoleted packages)
+APT::Periodic::AutocleanInterval "7";
+
+# Auto-remove unused dependencies
+APT::Periodic::Unattended-Upgrade-Remove-Unused-Dependencies "1";
+
+# Remove unused kernel packages
+APT::Periodic::Unattended-Upgrade-Remove-Unused-Kernel-Packages "1";

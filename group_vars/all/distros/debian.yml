@@ -1,0 +1,50 @@
+---
+# Debian-specific variables
+package_manager: apt
+package_update_cmd: apt-get update
+package_upgrade_cmd: apt-get upgrade -y
+package_autoremove_cmd: apt-get autoremove -y
+
+# Package names
+packages:
+  essential:
+    - vim
+    - curl
+    - wget
+    - htop
+    - git
+    - mtr-tiny
+    - net-tools
+    - apt-transport-https
+    - ca-certificates
+    - gnupg
+    - lsb-release
+  security:
+    - fail2ban
+    - ufw
+  time:
+    - ntp
+  logging:
+    - rsyslog
+    - logrotate
+
+# Service names
+services:
+  ssh: ssh
+  fail2ban: fail2ban
+  ntp: ntp
+  rsyslog: rsyslog
+
+# Configuration paths
+ssh_config_dir: /etc/ssh/sshd_config.d
+ssh_config_file: /etc/ssh/sshd_config.d/99-custom.conf
+fail2ban_config: /etc/fail2ban/jail.local
+auto_upgrades_config: /etc/apt/apt.conf.d/20auto-upgrades
+logrotate_config: /etc/logrotate.conf
+rsyslog_config: /etc/rsyslog.conf
+
+# Firewall commands
+firewall_enable_cmd: ufw --force enable
+firewall_allow_ssh_cmd: ufw allow ssh
+firewall_default_deny_cmd: ufw default deny incoming
+firewall_default_allow_cmd: ufw default allow outgoing

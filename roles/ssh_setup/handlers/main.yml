@@ -1,6 +1,70 @@
 ---
 # Handler to restart SSH service when configuration changes
+
 - name: restart ssh
+  service:
+    name: "{{ ssh_service }}"
+    state: restarted
+  listen: "restart ssh service"
+
+- name: restart sshd
+  service:
+    name: "{{ ssh_service }}"
+    state: restarted
+  listen: "restart ssh service"
+
+# Validate configuration before restart
+- name: validate ssh config
+  command: "{{ ssh_command }} -t"
+  register: ssh_config_test
+  failed_when: ssh_config_test.rc != 0
+  changed_when: false
+  listen: "validate ssh configuration"
+
+# Full restart sequence with validation
+- name: reload ssh safely
+  block:
+    - name: Test SSH configuration
+      command: "{{ ssh_command }} -t"
+      register: config_test
+      failed_when: config_test.rc != 0
+      changed_when: false
+    
+    - name: Restart SSH service
+      service:
+        name: "{{ ssh_service }}"
+        state: restarted
+      when: config_test.rc == 0
+  rescue:
+    - name: Configuration test failed
+      debug:
+        msg: "SSH configuration validation failed. Service not restarted."
+    
+    - name: Display error
+      debug:
+        var: config_test.stderr
+      when: config_test.stderr is defined
+  listen: "restart ssh safely"
+
+# Reload instead of restart (keeps existing connections)
+- name: reload ssh
+  service:
+    name: "{{ ssh_service }}"
+    state: reloaded
+  listen: "reload ssh service"
+  ignore_errors: yes  # Some distributions don't support reload
+
+# Conditional restart based on distribution
+- name: restart ssh debian
   service:
     name: ssh
     state: restarted
+  when: ansible_os_family == "Debian"
+  listen: "restart ssh conditional"
+
+- name: restart ssh redhat
+  service:
+    name: sshd
+    state: restarted
+  when: ansible_os_family == "RedHat"
+  listen: "restart ssh conditional"

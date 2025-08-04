@@ -1,0 +1,6 @@
+# Resource limits for {{ item.name }}
+# Managed by Ansible
+
+{% for limit in item.limits %}
+{{ item.name }}  {{ limit.type }}  {{ limit.item }}  {{ limit.value }}
+{% endfor %}

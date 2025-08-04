@@ -1,6 +1,53 @@
+---
 - name: Basic server setup
   hosts: servers
   become: yes  # Run tasks with sudo privileges
+  
+  vars:
+    # Environment variables
+    SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"
+    NEW_USER_PASSWORD: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
+    NEW_USER_NAME: "{{ lookup('env', 'NEW_USER_NAME') }}"
+    ANSIBLE_USER: "{{ lookup('env', 'ANSIBLE_USER') }}"
+    TIMEZONE: "{{ lookup('env', 'TIMEZONE') }}"
+    
+    # Distribution mapping
+    distro_vars_map:
+      Ubuntu: ubuntu
+      Debian: debian
+      RedHat: redhat
+      CentOS: redhat
+      Rocky: redhat
+      AlmaLinux: redhat
+      OracleLinux: redhat
+
+  pre_tasks:
+    - name: Gather distribution facts
+      setup:
+        filter: ansible_distribution*
+      tags: always
+    
+    - name: Display detected distribution
+      debug:
+        msg: "Detected distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      tags: always
+    
+    - name: Set distribution vars file
+      set_fact:
+        distro_vars_file: "{{ distro_vars_map[ansible_distribution] | default('ubuntu') }}"
+      tags: always
+    
+    - name: Verify distribution is supported
+      assert:
+        that:
+          - ansible_distribution in distro_vars_map
+        fail_msg: "Unsupported distribution: {{ ansible_distribution }}. Supported: {{ distro_vars_map.keys() | list | join(', ') }}"
+        success_msg: "Distribution {{ ansible_distribution }} is supported, using {{ distro_vars_file }} configuration"
+      tags: always
+    
+    - name: Load distribution-specific variables
+      include_vars: "group_vars/all/distros/{{ distro_vars_file }}.yml"
+      tags: always
 
   roles:
     - { role: system_updates, tags: ['system', 'updates'] }
@@ -11,11 +58,3 @@
     - { role: package_installation, tags: ['packages'] }
     - { role: security_setup, tags: ['security'] }
     - { role: automatic_updates, tags: ['updates', 'automatic'] }
-
-
-  vars:
-    SSH_KEY_PATH: "{{ lookup('env', 'SSH_KEY_PATH') }}"
-    NEW_USER_PASSWORD: "{{ lookup('env', 'NEW_USER_PASSWORD') }}"
-    NEW_USER_NAME: "{{ lookup('env', 'NEW_USER_NAME') }}"
-    ANSIBLE_USER: "{{ lookup('env', 'ANSIBLE_USER') }}"
-    TIMEZONE: "{{ lookup('env', 'TIMEZONE') }}"
