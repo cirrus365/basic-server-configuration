@@ -1,5 +1,3 @@
-Here's a comprehensive README.md that documents all the enhancements:
-
 ```markdown
 # 🛠️ Ansible Basic Server Configuration
 
