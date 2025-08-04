@@ -85,39 +85,108 @@ vim inventory.ini
 
 ```
 .
-├── ansible.cfg              # Ansible configuration
-├── inventory.ini            # Server inventory (or inventory.yml)
-├── playbook.yml            # Main playbook
-├── run.sh                  # Execution script with reporting
-├── .env.example            # Environment variables template
-├── group_vars/             # Group variables
-│   └── all.yml            # Global variables
-├── config/                 # Configuration files
-│   ├── apt/               # APT configurations
-│   │   ├── 10periodic
-│   │   ├── 20auto-upgrades
-│   │   ├── 50unattended-upgrades
-│   │   └── 99local
-│   ├── fail2ban/          # Fail2ban configs
-│   │   ├── jail.local
-│   │   ├── jail.d/
-│   │   ├── filter.d/
-│   │   └── action.d/
-│   └── ssh/               # SSH configurations
-│       ├── 99-custom.conf
-│       ├── banner.txt
-│       └── sshd_config.d/
-├── logs/                   # Execution logs (auto-created)
-├── reports/                # HTML reports (auto-created)
-└── roles/                  # Ansible roles
-    ├── system_update/
-    ├── user_management/
-    ├── ssh_hardening/
-    ├── firewall/
-    ├── fail2ban/
-    ├── common_packages/
-    ├── automatic_updates/
-    └── timezone/
+├── ansible.cfg
+├── config
+│   ├── apt
+│   │   ├── 0periodic
+│   │   ├── 20auto-upgrades
+│   │   ├── 50unattended-upgrades
+│   │   └── 99local
+│   ├── fail2ban
+│   │   ├── action.d
+│   │   │   └── iptables-multiport-log.conf
+│   │   ├── filter.d
+│   │   │   ├── bad-bots.conf
+│   │   │   ├── portscan.conf
+│   │   │   └── sshd-ddos.conf
+│   │   ├── jail.d
+│   │   │   └── 00-defaults.conf
+│   │   └── jail.local
+│   └── ssh
+│       ├── 99-custom.conf
+│       ├── banner.txt
+│       ├── moduli
+│       └── sshd_config.d
+│           ├── 10-crypto.conf
+│           ├── 20-auth.conf
+│           ├── 30-access.conf
+│           └── 40-logging.conf
+├── group_vars
+│   └── all
+│       ├── distros
+│       │   ├── debian.yml
+│       │   ├── redhat.yml
+│       │   └── ubuntu.yml
+│       └── main.yml
+├── inventory_dynamic.py
+├── inventory.ini
+├── inventory.yml
+├── LICENSE
+├── playbook.yml
+├── README.md
+├── roles
+│   ├── automatic_updates
+│   │   ├── files
+│   │   │   └── 20auto-upgrades
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── logging_setup
+│   │   ├── files
+│   │   │   ├── logrotate.conf
+│   │   │   ├── logrotate-debian.conf
+│   │   │   └── logrotate-redhat.conf
+│   │   ├── handlers
+│   │   │   └── main.yml
+│   │   ├── tasks
+│   │   │   └── main.yml
+│   │   └── templates
+│   │       └── rsyslog.conf.j2
+│   ├── package_installation
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── security_setup
+│   │   ├── files
+│   │   │   ├── jail-debian.local
+│   │   │   ├── jail.local
+│   │   │   └── jail-redhat.local
+│   │   ├── handlers
+│   │   │   └── main.yml
+│   │   ├── tasks
+│   │   │   └── main.yml
+│   │   └── templates
+│   │       ├── paths-overrides.local.j2
+│   │       └── security-report.j2
+│   ├── ssh_setup
+│   │   ├── files
+│   │   │   ├── 99-security.conf.conf
+│   │   │   ├── 99-security-debian.conf
+│   │   │   ├── 99-security-redhat.conf
+│   │   │   └── banner.txt
+│   │   ├── handlers
+│   │   │   └── main.yml
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── system_updates
+│   │   └── tasks
+│   │       └── main.yml
+│   ├── time_configuration
+│   │   ├── defaults
+│   │   │   └── main.yml
+│   │   ├── handlers
+│   │   │   └── main.yml
+│   │   ├── tasks
+│   │   │   └── main.yml
+│   │   └── templates
+│   │       ├── chrony.conf.j2
+│   │       └── time-report.j2
+│   └── user_management
+│       ├── tasks
+│       │   └── main.yml
+│       └── templates
+│           ├── limits.conf.j2
+│           └── sudoers.j2
+└── run.sh
+
 ```
 
 ## 🔧 Installation
